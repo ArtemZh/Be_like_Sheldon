@@ -41,6 +41,14 @@
       </div>
     </aside>
     <div id="map"></div>
+
+    <!-- Підказка живе окремим вікном, а не попапом на марці: попап
+         перехоплював би клік, а клік по станції задає новий старт. -->
+    <div id="hint" hidden>
+      <p class="hint-name"></p>
+      <p class="hint-useful"></p>
+      <p class="hint-times"></p>
+    </div>
     <script type="module" src="/src/map.js"></script>
   </body>
 </html>

@@ -207,6 +207,45 @@ input[type='range']::-webkit-slider-thumb {
 
 #map { flex: 1; }
 
+/* Зафіксована на екрані картка підказки. */
+#hint {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2;
+  min-width: 190px;
+  max-width: 260px;
+  padding: 13px 15px;
+  background: var(--paper);
+  border-radius: var(--r-md);
+  box-shadow: var(--lift);
+  pointer-events: none;
+}
+
+#hint[hidden] { display: none; }
+
+#hint p { margin: 0; }
+
+.hint-name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.hint-useful {
+  margin-top: 5px !important;
+  font-size: 13px;
+  color: var(--grey-700);
+}
+
+.hint-times {
+  margin-top: 7px !important;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--grey-500);
+}
+
 .maplibregl-popup-content {
   font-family: var(--sans);
   border-radius: var(--r-md);

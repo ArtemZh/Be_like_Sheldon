@@ -88,7 +88,12 @@ function render() {
     features: points.map((p) => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
-      properties: { name: p.name, useful: p.useful, label: formatHours(p.useful) },
+      properties: {
+        name: p.name,
+        useful: p.useful,
+        arrival: p.window[0],
+        departure: p.window[1],
+      },
     })),
   });
 
@@ -138,6 +143,32 @@ function renderOrigins() {
   });
 }
 
+/** Час у секундах від півночі -> '18:05'. */
+function clockTime(seconds) {
+  const h = Math.floor(seconds / 3600) % 24;
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * Підказка про станцію призначення.
+ *
+ * Живе окремим зафіксованим вікном, а не попапом на марці: попап
+ * перехоплював би клік, а клік по станції задає новий старт.
+ */
+function showHint({ name, useful, arrival, departure }) {
+  const hint = el('hint');
+  hint.querySelector('.hint-name').textContent = name;
+  hint.querySelector('.hint-useful').textContent = `${formatHours(useful)} на місці`;
+  hint.querySelector('.hint-times').textContent =
+    `приїзд ${clockTime(arrival)} · назад ${clockTime(departure)}`;
+  hint.hidden = false;
+}
+
+function hideHint() {
+  el('hint').hidden = true;
+}
+
 /**
  * Обрати старт за кліком по карті.
  *
@@ -158,6 +189,7 @@ function selectOrigin(stopId) {
   state.origin = stopId;
   el('origin').value = stopId;
   el('status').textContent = 'Рахую…';
+  hideHint();
   worker.postMessage({
     type: 'route',
     origin: station.i,
@@ -245,19 +277,21 @@ function addLayers() {
     },
   });
 
-  // Клік по станції призначення показує її картку, клік по будь-якому
-  // іншому місцю карти обирає найближчий доступний старт.
+  // Клік завжди задає новий старт — і по порожньому місцю, і по станції
+  // призначення. Що це за станція, розповідає окрема картка на наведення:
+  // попап на марці перехоплював би клік.
   map.on('click', (event) => {
-    const hit = map.queryRenderedFeatures(event.point, { layers: ['stations'] });
-    if (hit.length) {
-      const { name, label } = hit[0].properties;
-      new maplibregl.Popup()
-        .setLngLat(event.lngLat)
-        .setHTML(`<strong>${name}</strong><span class="time">${label} на місці</span>`)
-        .addTo(map);
-      return;
-    }
     pickNearestOrigin(event.lngLat);
+  });
+
+  map.on('mousemove', 'stations', (event) => {
+    showHint(event.features[0].properties);
+    map.getCanvas().style.cursor = 'pointer';
+  });
+
+  map.on('mouseleave', 'stations', () => {
+    hideHint();
+    map.getCanvas().style.cursor = 'crosshair';
   });
 
   map.getCanvas().style.cursor = 'crosshair';
