@@ -8,12 +8,12 @@ import { DEPART_AFTER, RETURN_BY } from './daytrip.js';
 const DATA = `${import.meta.env.BASE_URL}data`;
 // Секвенційна шкала: один тон бренду, світло -> темно.
 //
-// Величину кодує лише колір, а марки напівпрозорі, тому рампа темніша за
-// брендовий сигнал: при 50% на папері світлі кроки просто зникають.
+// Величину кодує лише колір, тому рампа темніша за брендовий сигнал:
+// на папері вона тримає контраст від 2.96 до 12.5, і сусідні біни
+// розрізняються без допомоги розміру.
 const BREAKS = [4 * 3600, 6 * 3600, 8 * 3600];
 const SEQ = ['#e8763a', '#d4500f', '#a83a0b', '#5e1f06'];
 const DOT_RADIUS = 3.5;
-const DOT_OPACITY = 0.5;
 const EMPTY = { type: 'FeatureCollection', features: [] };
 // Німеччина цілком: карта відкривається на весь контур, а не на точці.
 const GERMANY = [[5.87, 47.27], [15.04, 55.06]];
@@ -225,9 +225,7 @@ function addLayers() {
         'step', ['get', 'useful'],
         SEQ[0], BREAKS[0], SEQ[1], BREAKS[1], SEQ[2], BREAKS[2], SEQ[3],
       ],
-      // Накладені марки розділяє сама прозорість, а не біле кільце:
-      // при 50% воно лише висвітлювало б колір.
-      'circle-opacity': DOT_OPACITY,
+      'circle-opacity': 1,
     },
   });
 
@@ -240,9 +238,9 @@ function addLayers() {
     // носять сигнальний колір: порожнє кільце, поки не обрано, залите
     // після вибору.
     paint: {
-      'circle-radius': ['case', ['get', 'chosen'], 9, 5],
+      'circle-radius': ['case', ['get', 'chosen'], 6, 4],
       'circle-color': ['case', ['get', 'chosen'], '#ea5212', '#ffffff'],
-      'circle-stroke-width': ['case', ['get', 'chosen'], 3, 2],
+      'circle-stroke-width': ['case', ['get', 'chosen'], 2, 1.5],
       'circle-stroke-color': '#ea5212',
     },
   });
