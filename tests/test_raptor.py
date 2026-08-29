@@ -34,3 +34,44 @@ def test_reversed_feed_gives_latest_departure(gtfs_zip):
     home = feed.stop_index["A"]
     times = earliest_arrivals(rev, home, departure_after=-23 * 3600)
     assert -int(times[feed.stop_index["C"]]) == 18 * 3600
+
+
+import numpy as np
+
+from build.feed import Feed
+from build.raptor import MIN_TRANSFER_SECONDS
+
+
+def _transfer_feed() -> Feed:
+    """A -> B одним патерном; з B два рейси на C: через 1 хв і через 10 хв."""
+    return Feed(
+        stop_ids=np.array(["A", "B", "C"]),
+        stop_names=np.array(["A", "B", "C"]),
+        stop_lats=np.array([1.0, 2.0, 3.0]),
+        stop_lons=np.array([1.0, 2.0, 3.0]),
+        pattern_ptr=np.array([0, 2, 4], dtype=np.int32),
+        pattern_stops=np.array([0, 1, 1, 2], dtype=np.int32),
+        pattern_trip_ptr=np.array([0, 1, 3], dtype=np.int32),
+        trip_arr=np.array([35000, 36000, 36060, 37000, 36600, 38000], dtype=np.int32),
+        trip_dep=np.array([35000, 36000, 36060, 37000, 36600, 38000], dtype=np.int32),
+        transfer_from=np.array([], dtype=np.int32),
+        transfer_to=np.array([], dtype=np.int32),
+        transfer_time=np.array([], dtype=np.int32),
+    )
+
+
+def test_transfer_needs_minimum_slack():
+    feed = _transfer_feed()
+    times = earliest_arrivals(feed, 0, departure_after=35000)
+    # рейс через хвилину після приїзду не встигаєш — тільки той, що через 10
+    assert times[2] == 38000
+
+
+def test_no_transfer_penalty_at_origin():
+    feed = _transfer_feed()
+    times = earliest_arrivals(feed, 0, departure_after=35000)
+    assert times[1] == 36000
+
+
+def test_minimum_transfer_is_five_minutes():
+    assert MIN_TRANSFER_SECONDS == 5 * 60

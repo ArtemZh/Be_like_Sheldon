@@ -55,3 +55,37 @@ def gtfs_zip(tmp_path: Path) -> Path:
         z.writestr("stop_times.txt", STOP_TIMES)
         z.writestr("calendar.txt", CALENDAR)
     return path
+
+
+PLATFORM_STOPS = """stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station
+P,Pville Hbf,52.500,13.400,1,
+P1,Pville Hbf,52.5001,13.4001,0,P
+P2,Pville Hbf,52.4999,13.3999,0,P
+Q,Qtown Hbf,52.000,13.000,1,
+Q1,Qtown Hbf,52.0,13.0,0,Q
+"""
+
+PLATFORM_TRIPS = """route_id,service_id,trip_id
+r_line1,mon,t_P1Q1
+r_line1,mon,t_Q1P2
+"""
+
+PLATFORM_STOP_TIMES = """trip_id,arrival_time,departure_time,stop_id,stop_sequence
+t_P1Q1,09:30:00,09:30:00,P1,1
+t_P1Q1,10:30:00,10:30:00,Q1,2
+t_Q1P2,18:00:00,18:00:00,Q1,1
+t_Q1P2,19:00:00,19:00:00,P2,2
+"""
+
+
+@pytest.fixture
+def gtfs_zip_platforms(tmp_path: Path) -> Path:
+    """Фід, де станція складається з кількох платформ — як у справжньому DELFI."""
+    path = tmp_path / "platforms.zip"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("stops.txt", PLATFORM_STOPS)
+        z.writestr("routes.txt", ROUTES)
+        z.writestr("trips.txt", PLATFORM_TRIPS)
+        z.writestr("stop_times.txt", PLATFORM_STOP_TIMES)
+        z.writestr("calendar.txt", CALENDAR)
+    return path

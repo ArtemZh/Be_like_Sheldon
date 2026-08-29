@@ -8,6 +8,7 @@ from build.feed import Feed
 
 UNREACHABLE = int(np.iinfo(np.int32).max)
 MAX_ROUNDS = 5  # до 4 пересадок
+MIN_TRANSFER_SECONDS = 5 * 60
 
 
 def earliest_arrivals(
@@ -33,7 +34,7 @@ def earliest_arrivals(
 
         improved: set[int] = set()
         for pattern, start_pos in queue.items():
-            improved |= _scan_pattern(feed, pattern, start_pos, best)
+            improved |= _scan_pattern(feed, pattern, start_pos, best, origin)
 
         improved |= _apply_transfers(feed, improved, best)
 
@@ -44,8 +45,15 @@ def earliest_arrivals(
     return best
 
 
-def _scan_pattern(feed: Feed, pattern: int, start_pos: int, best: np.ndarray) -> set[int]:
-    """Проїхати патерн, підхопивши найраніший придатний рейс."""
+def _scan_pattern(
+    feed: Feed, pattern: int, start_pos: int, best: np.ndarray, origin: int
+) -> set[int]:
+    """Проїхати патерн, підхопивши найраніший придатний рейс.
+
+    Посадка на іншому вузлі, ніж origin, вимагає MIN_TRANSFER_SECONDS запасу:
+    станції зведені до одного вузла, тому перехід між платформами більше не
+    коштує часу сам собою.
+    """
     length = feed.pattern_length(pattern)
     lo = int(feed.pattern_ptr[pattern])
     stops = feed.pattern_stops[lo : lo + length]
@@ -65,8 +73,9 @@ def _scan_pattern(feed: Feed, pattern: int, start_pos: int, best: np.ndarray) ->
                 improved.add(stop)
 
         if best[stop] < UNREACHABLE:
+            slack = 0 if stop == origin else MIN_TRANSFER_SECONDS
             boardable = _first_trip_after(
-                feed, pattern, pos, int(best[stop]), trip_lo, trip_hi
+                feed, pattern, pos, int(best[stop]) + slack, trip_lo, trip_hi
             )
             if boardable is not None and (current_trip is None or boardable < current_trip):
                 current_trip = boardable
