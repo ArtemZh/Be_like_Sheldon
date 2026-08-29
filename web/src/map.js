@@ -234,20 +234,44 @@ function render() {
 }
 
 /**
- * Зони коштують ~350 мс на країну, а слайдер шле подію на кожен крок.
- * Кружечки оновлюються миттєво, контури — коли рух припинився.
+ * Зони коштують ~46 мс на країну, а події сиплються часто: слайдер шле їх
+ * на кожен крок, анімація — щокадру.
+ *
+ * Тому дві швидкості. Поза програванням контури будуються, коли рух
+ * припинився. Під час програвання — не частіше ніж раз на 220 мс: у кадр
+ * 16 мс перебудова не влазить, але чотири оновлення на секунду око читає
+ * як плавне, бо зони і так змінюються повільно.
  */
+const ZONES_IDLE_DELAY = 180;
+const ZONES_PLAYBACK_INTERVAL = 220;
+
 let zonesTimer = null;
+let lastZonesBuiltAt = 0;
+
+function zonePoints(points) {
+  // Згасла станція вже не рахується: зона має стягуватись разом із крапками.
+  return state.clock === null ? points : points.filter((point) => !point.expired);
+}
+
+function drawZones(points) {
+  lastZonesBuiltAt = performance.now();
+  map.getSource('zones').setData(buildZones(zonePoints(points), WINDOWS[state.window].breaks));
+}
+
 function scheduleZones(points) {
   clearTimeout(zonesTimer);
-  // Під час програвання зони не перебудовуємо: 45 мс на кадр з'їли б анімацію.
-  if (!el('show-zones').checked || state.playing) {
+
+  if (!el('show-zones').checked) {
     map.getSource('zones').setData(EMPTY);
     return;
   }
-  zonesTimer = setTimeout(() => {
-    map.getSource('zones').setData(buildZones(points, WINDOWS[state.window].breaks));
-  }, 180);
+
+  if (state.playing) {
+    if (performance.now() - lastZonesBuiltAt >= ZONES_PLAYBACK_INTERVAL) drawZones(points);
+    return;
+  }
+
+  zonesTimer = setTimeout(() => drawZones(points), ZONES_IDLE_DELAY);
 }
 
 /**
@@ -422,9 +446,9 @@ function tick(now) {
   const next = (state.clock ?? from) + elapsed * PLAYBACK_MINUTES_PER_SECOND * 60;
 
   if (next >= to) {
-    setClock(to);
     state.playing = false;
     updatePlayIcon();
+    setClock(to); // після зупинки зони домальовуються звичайним шляхом
     return;
   }
   setClock(next);
