@@ -5,8 +5,10 @@ import { filterStations, formatHours } from './metrics.js';
 import { buildZones } from './grid.js';
 
 const DATA = `${import.meta.env.BASE_URL}data`;
-const BREAKS = [2 * 3600, 4 * 3600, 6 * 3600, 8 * 3600];
-const COLORS = ['#2b4a5a', '#2f7d78', '#4cc9a0', '#a8e05f', '#f9d423'];
+// Секвенційна шкала: один тон бренду, світло -> темно. Магнітуда дублюється
+// радіусом, бо два світлі кроки не дотягують до 3:1 на папері.
+const BREAKS = [4 * 3600, 6 * 3600, 8 * 3600];
+const SEQ = ['#f6b48c', '#f08a57', '#ea5212', '#93300a'];
 const EMPTY = { type: 'FeatureCollection', features: [] };
 
 const el = (id) => document.getElementById(id);
@@ -14,7 +16,7 @@ const state = { index: null, windows: null, layersReady: false };
 
 const map = new maplibregl.Map({
   container: 'map',
-  style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
   center: [10.4, 51.1],
   zoom: 5.2,
 });
@@ -48,8 +50,8 @@ function render() {
   if (!state.windows) return;
 
   const points = currentPoints();
-  el('status').textContent = points.length
-    ? `${points.length} станцій підходить`
+  el('status').innerHTML = points.length
+    ? `<strong>${points.length}</strong> станцій підходить`
     : 'Звідси за цей день нікуди не зʼїздиш';
 
   if (!state.layersReady) return;
@@ -84,8 +86,11 @@ function addLayers() {
     type: 'fill',
     source: 'zones',
     paint: {
-      'fill-color': ['interpolate', ['linear'], ['get', 'value'], 0, COLORS[0], 8 * 3600, COLORS[4]],
-      'fill-opacity': 0.25,
+      'fill-color': [
+        'step', ['get', 'value'],
+        SEQ[0], BREAKS[0], SEQ[1], BREAKS[1], SEQ[2], BREAKS[2], SEQ[3],
+      ],
+      'fill-opacity': 0.18,
     },
   });
 
@@ -95,17 +100,17 @@ function addLayers() {
     type: 'circle',
     source: 'stations',
     paint: {
-      'circle-radius': 5,
-      'circle-color': [
-        'interpolate',
-        ['linear'],
-        ['get', 'useful'],
-        0, COLORS[0],
-        4 * 3600, COLORS[2],
-        8 * 3600, COLORS[4],
+      'circle-radius': [
+        'step', ['get', 'useful'],
+        3, BREAKS[0], 4.5, BREAKS[1], 6, BREAKS[2], 7.5,
       ],
+      'circle-color': [
+        'step', ['get', 'useful'],
+        SEQ[0], BREAKS[0], SEQ[1], BREAKS[1], SEQ[2], BREAKS[2], SEQ[3],
+      ],
+      // кільце кольору паперу розділяє накладені марки
       'circle-stroke-width': 1,
-      'circle-stroke-color': '#10161d',
+      'circle-stroke-color': '#ffffff',
     },
   });
 
@@ -113,7 +118,7 @@ function addLayers() {
     const { name, label } = event.features[0].properties;
     new maplibregl.Popup()
       .setLngLat(event.lngLat)
-      .setHTML(`<strong>${name}</strong><br>${label} на місці`)
+      .setHTML(`<strong>${name}</strong><span class="time">${label} на місці</span>`)
       .addTo(map);
   });
 

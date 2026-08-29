@@ -4,25 +4,41 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Куди доїду за день</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <aside id="panel">
       <h1>Куди доїду за день</h1>
-      <p class="sub">Понеділок, виїзд після 09:00, повернення до 23:00</p>
+      <p class="sub">Понеділок · 09:00 → 23:00</p>
 
       <label for="origin">Звідки</label>
       <select id="origin"></select>
 
-      <label for="min-stay">Мінімум на місці: <output id="min-stay-value">4 год</output></label>
+      <label for="min-stay">Мінімум на місці · <output id="min-stay-value">4 год</output></label>
       <input id="min-stay" type="range" min="0" max="43200" step="1800" value="14400" />
 
-      <label for="overhead">Кава й хотдог: <output id="overhead-value">1 год</output></label>
+      <label for="overhead">Кава й хотдог · <output id="overhead-value">1 год</output></label>
       <input id="overhead" type="range" min="0" max="7200" step="900" value="3600" />
 
-      <label><input id="show-zones" type="checkbox" checked /> Показувати зони</label>
+      <label class="toggle"><input id="show-zones" type="checkbox" checked /> Показувати зони</label>
 
       <p id="status"></p>
+
+      <div id="legend">
+        <h2>Корисних годин на місці</h2>
+        <ul>
+          <li><span class="dot" style="width: 6px; height: 6px; background: #f6b48c"></span> до 4</li>
+          <li><span class="dot" style="width: 9px; height: 9px; background: #f08a57"></span> 4 — 6</li>
+          <li><span class="dot" style="width: 12px; height: 12px; background: #ea5212"></span> 6 — 8</li>
+          <li><span class="dot" style="width: 15px; height: 15px; background: #93300a"></span> 8 і більше</li>
+        </ul>
+      </div>
     </aside>
     <div id="map"></div>
     <script type="module" src="/src/map.js"></script>
