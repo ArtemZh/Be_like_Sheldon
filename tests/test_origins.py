@@ -1,25 +1,8 @@
 from build.gtfs_ingest import load_gtfs
-from build.origins import pick_origins
-
-
-def test_returns_busiest_stops_first(gtfs_zip):
-    feed = load_gtfs(gtfs_zip)
-    assert pick_origins(feed, limit=2)[0] == "A"
-
-
-def test_excludes_stops_without_rail_service(gtfs_zip):
-    feed = load_gtfs(gtfs_zip)
-    assert "E" not in pick_origins(feed, limit=10)
-
-
-def test_respects_limit(gtfs_zip):
-    feed = load_gtfs(gtfs_zip)
-    assert len(pick_origins(feed, limit=2)) == 2
+from build.origins import pick_major_stations
 
 
 def test_major_stations_are_main_stations_only(gtfs_zip):
-    from build.origins import pick_major_stations
-
     feed = load_gtfs(gtfs_zip)
     # у фікстурі всі станції звуться "... Hbf", крім Eedorf
     majors = pick_major_stations(feed, limit=10)
@@ -29,8 +12,6 @@ def test_major_stations_are_main_stations_only(gtfs_zip):
 
 
 def test_major_stations_keep_one_per_city(gtfs_zip):
-    from build.origins import pick_major_stations
-
     feed = load_gtfs(gtfs_zip)
     majors = pick_major_stations(feed, limit=10)
     cities = [str(feed.stop_names[feed.stop_index[s]]).split()[0] for s in majors]
@@ -38,8 +19,6 @@ def test_major_stations_keep_one_per_city(gtfs_zip):
 
 
 def test_major_stations_respect_limit(gtfs_zip):
-    from build.origins import pick_major_stations
-
     feed = load_gtfs(gtfs_zip)
     assert len(pick_major_stations(feed, limit=2)) == 2
 
@@ -68,8 +47,6 @@ def test_major_skips_nameless_hauptbahnhof(tmp_path):
         z.writestr("trips.txt", trips)
         z.writestr("stop_times.txt", stop_times)
         z.writestr("calendar.txt", CALENDAR)
-
-    from build.origins import pick_major_stations
 
     feed = load_gtfs(path)
     majors = pick_major_stations(feed, limit=5)

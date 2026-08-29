@@ -12,15 +12,20 @@ export function usefulTime(window, overhead) {
 }
 
 /**
- * Відфільтрувати станції за слайдерами.
- * @returns {Record<string, {window: number[], useful: number}>}
+ * Відфільтрувати результат роутингу за слайдерами.
+ *
+ * Вхід — типізовані масиви від воркера: паралельні stops / arrivals /
+ * departures. Фільтр дешевий, бо це арифметика над двома числами, тому
+ * слайдери можуть рухатись без перерахунку маршрутів.
+ *
+ * @returns {{stop: number, useful: number, window: number[]}[]}
  */
-export function filterStations(windows, { minStay, overhead }) {
-  const out = {};
-  for (const [stopId, window] of Object.entries(windows)) {
-    const useful = usefulTime(window, overhead);
+export function filterWindows({ stops, arrivals, departures }, { minStay, overhead }) {
+  const out = [];
+  for (let i = 0; i < stops.length; i += 1) {
+    const useful = departures[i] - arrivals[i] - overhead;
     if (useful >= minStay) {
-      out[stopId] = { window, useful };
+      out.push({ stop: stops[i], useful, window: [arrivals[i], departures[i]] });
     }
   }
   return out;

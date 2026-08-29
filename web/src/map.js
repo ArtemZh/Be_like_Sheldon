@@ -1,8 +1,9 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { filterStations, formatHours, nearestOrigin } from './metrics.js';
+import { filterWindows, formatHours, nearestOrigin } from './metrics.js';
 import { buildZones } from './grid.js';
+import { DEPART_AFTER, RETURN_BY } from './daytrip.js';
 
 const DATA = `${import.meta.env.BASE_URL}data`;
 // Секвенційна шкала: один тон бренду, світло -> темно. Магнітуда дублюється
@@ -14,7 +15,16 @@ const EMPTY = { type: 'FeatureCollection', features: [] };
 const GERMANY = [[5.87, 47.27], [15.04, 55.06]];
 
 const el = (id) => document.getElementById(id);
-const state = { index: null, windows: null, origin: null, network: null, layersReady: false };
+const state = {
+  index: null,
+  byIndex: null, // порядковий номер станції у фіді -> її запис
+  result: null, // останній результат воркера: типізовані масиви
+  origin: null,
+  network: null,
+  layersReady: false,
+};
+
+const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -40,12 +50,11 @@ function fail(message) {
 function currentPoints() {
   const minStay = Number(el('min-stay').value);
   const overhead = Number(el('overhead').value);
-  const passing = filterStations(state.windows, { minStay, overhead });
 
-  return Object.entries(passing).flatMap(([stopId, info]) => {
-    const station = state.index.stations[stopId];
+  return filterWindows(state.result, { minStay, overhead }).flatMap((entry) => {
+    const station = state.byIndex[entry.stop];
     if (!station) return [];
-    return [{ ...station, id: stopId, useful: info.useful, window: info.window }];
+    return [{ ...station, useful: entry.useful, window: entry.window }];
   });
 }
 
@@ -56,16 +65,19 @@ function render() {
 
   renderOrigins();
 
-  if (!state.windows) {
+  if (!state.result) {
     map.getSource('stations').setData(EMPTY);
     map.getSource('zones').setData(EMPTY);
     return;
   }
 
   const points = currentPoints();
+  // Стартом може бути будь-яка станція, а в списку лише головні вокзали,
+  // тому назву обраної показуємо тут — інакше вона зникає.
+  const originName = state.index.stations[state.origin]?.name ?? '';
   el('status').innerHTML = points.length
-    ? `<strong>${points.length}</strong> станцій підходить`
-    : 'Звідси за цей день нікуди не зʼїздиш';
+    ? `<strong>${points.length}</strong> станцій з <em>${originName}</em>`
+    : `З <em>${originName}</em> за цей день нікуди не зʼїздиш`;
 
   map.getSource('stations').setData({
     type: 'FeatureCollection',
@@ -122,29 +134,53 @@ function renderOrigins() {
   });
 }
 
-/** Обрати старт за кліком по карті — найближчий із прорахованих. */
+/**
+ * Обрати старт за кліком по карті.
+ *
+ * Передрахунку немає, тому кандидатами є всі станції фіду, а не короткий
+ * список: куди клікнув, звідти й поїдеш.
+ */
 function pickNearestOrigin(lngLat) {
-  if (!state.index) return;
-  const candidates = state.index.origins.flatMap((id) => {
-    const station = state.index.stations[id];
-    return station ? [{ id, lat: station.lat, lon: station.lon }] : [];
-  });
-  const nearest = nearestOrigin({ lat: lngLat.lat, lon: lngLat.lng }, candidates);
+  if (!state.candidates) return;
+  const nearest = nearestOrigin({ lat: lngLat.lat, lon: lngLat.lng }, state.candidates);
   if (nearest) selectOrigin(nearest.id);
 }
 
-async function selectOrigin(stopId) {
+/** Порахувати день-трип із заданої станції. Відповідь прийде з воркера. */
+function selectOrigin(stopId) {
+  const station = state.index.stations[stopId];
+  if (!station) return;
+
+  state.origin = stopId;
+  el('origin').value = stopId;
   el('status').textContent = 'Рахую…';
-  try {
-    const payload = await loadJson(`${DATA}/origins/${stopId}.json`);
-    state.origin = stopId;
-    state.windows = payload.stations;
-    el('origin').value = stopId;
-    render();
-  } catch (error) {
-    fail(`Не вдалося завантажити дані (${error.message}).`);
-  }
+  worker.postMessage({
+    type: 'route',
+    origin: station.i,
+    departAfter: DEPART_AFTER,
+    returnBy: RETURN_BY,
+  });
 }
+
+worker.onmessage = (event) => {
+  const message = event.data;
+
+  if (message.type === 'ready') {
+    state.feedReady = true;
+    el('status').textContent = 'Клікніть по карті — візьму найближчу станцію.';
+    return;
+  }
+
+  if (message.type === 'error') {
+    fail(`Не вдалося порахувати маршрути (${message.message}).`);
+    return;
+  }
+
+  if (message.type === 'result') {
+    state.result = { stops: message.stops, arrivals: message.arrivals, departures: message.departures };
+    render();
+  }
+};
 
 function addLayers() {
   // Схема мережі лежить найнижче: вона контекст, а не дані відповіді.
@@ -241,12 +277,23 @@ function addLayers() {
  * одразу, а шари додаються окремо, коли карта буде готова.
  */
 async function initControls() {
+  el('status').textContent = 'Завантажую розклад…';
+
   try {
     state.index = await loadJson(`${DATA}/stations.json`);
   } catch (error) {
     fail(`Не вдалося завантажити список станцій (${error.message}).`);
     return;
   }
+
+  state.byIndex = [];
+  state.candidates = [];
+  for (const [id, station] of Object.entries(state.index.stations)) {
+    state.byIndex[station.i] = { id, ...station };
+    state.candidates.push({ id, lat: station.lat, lon: station.lon });
+  }
+
+  worker.postMessage({ type: 'init', dataUrl: DATA });
 
   // Мережа — контекст, без неї застосунок працює; тому окремо й без fail().
   loadJson(`${DATA}/network.json`)
@@ -256,15 +303,14 @@ async function initControls() {
     })
     .catch(() => {});
 
-  // збірка ранжує origin-и за кількістю рейсів — для вибору зі списку
-  // потрібен алфавіт, інакше вгорі опиняється міська S-Bahn, а не міста
+  // У списку — лише головні вокзали: решта обирається кліком по карті.
   const select = el('origin');
   const placeholder = document.createElement('option');
   placeholder.value = '';
   placeholder.textContent = '— оберіть станцію —';
   select.append(placeholder);
 
-  const labelled = state.index.origins.map((stopId) => ({
+  const labelled = (state.index.major ?? []).map((stopId) => ({
     stopId,
     name: state.index.stations[stopId]?.name ?? stopId,
   }));
@@ -283,8 +329,6 @@ async function initControls() {
     el(id).oninput = render;
   }
 
-  // Нічого не рахуємо наперед: спершу людина обирає, звідки їде.
-  el('status').textContent = 'Клікніть по карті — візьму найближчу станцію.';
   render();
 }
 

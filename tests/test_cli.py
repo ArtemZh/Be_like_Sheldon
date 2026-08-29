@@ -3,34 +3,31 @@ import json
 from build.cli import build_all
 
 
-def test_writes_stations_index_and_per_origin_files(gtfs_zip, tmp_path):
-    build_all(gtfs_zip, tmp_path, limit=2)
+def test_writes_binary_feed_and_meta(gtfs_zip, tmp_path):
+    build_all(gtfs_zip, tmp_path)
+    assert (tmp_path / "feed.bin").exists()
+    meta = json.loads((tmp_path / "feed.meta.json").read_text())
+    assert meta["nStops"] > 0
 
+
+def test_station_index_covers_every_station(gtfs_zip, tmp_path):
+    build_all(gtfs_zip, tmp_path)
     index = json.loads((tmp_path / "stations.json").read_text())
-    assert "A" in index["origins"]
+    # клік по карті може влучити в будь-яку станцію, тому індекс повний
+    assert set(index["stations"]) == {"A", "B", "C", "D", "E"}
     assert index["stations"]["A"]["name"] == "Aville Hbf"
-    assert index["stations"]["A"]["lat"] == 52.5
-
-    payload = json.loads((tmp_path / "origins" / "A.json").read_text())
-    assert payload["origin"] == "A"
-    assert payload["stations"]["C"] == [37800, 64800]
+    assert index["stations"]["A"]["i"] == 0
 
 
-def test_index_contains_only_stations_used_in_results(gtfs_zip, tmp_path):
-    build_all(gtfs_zip, tmp_path, limit=2)
+def test_index_lists_major_stations(gtfs_zip, tmp_path):
+    build_all(gtfs_zip, tmp_path)
     index = json.loads((tmp_path / "stations.json").read_text())
-    assert "E" not in index["stations"]
+    assert index["major"]
+    assert set(index["major"]) <= set(index["stations"])
 
 
 def test_writes_network_geojson(gtfs_zip, tmp_path):
-    build_all(gtfs_zip, tmp_path, limit=2)
+    build_all(gtfs_zip, tmp_path)
     network = json.loads((tmp_path / "network.json").read_text())
     assert network["type"] == "FeatureCollection"
-    assert len(network["features"]) == 3  # A-B, B-C, A-D
-
-
-def test_index_lists_major_stations_separately(gtfs_zip, tmp_path):
-    build_all(gtfs_zip, tmp_path, limit=2)
-    index = json.loads((tmp_path / "stations.json").read_text())
-    assert index["major"], "головні вокзали мають бути в індексі"
-    assert set(index["major"]) <= set(index["origins"]), "усі вони прораховані"
+    assert len(network["features"]) == 3

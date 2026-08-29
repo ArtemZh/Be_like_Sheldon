@@ -1,4 +1,9 @@
-"""CLI збірки: GTFS zip -> JSON для фронтенду."""
+"""CLI збірки: GTFS zip -> бінарний фід + індекси для фронтенду.
+
+Передрахунку відповідей більше немає. Браузер отримує сам розклад і рахує
+RAPTOR у Web Worker, тому стартом може бути будь-яка станція фіду, а не
+одна з наперед обраних.
+"""
 
 from __future__ import annotations
 
@@ -7,83 +12,64 @@ import json
 import sys
 from pathlib import Path
 
+from build.binary_feed import write_binary_feed
 from build.calendar_pick import monday_service_ids
-from build.daytrip import DEPART_AFTER, RETURN_BY, day_trip_windows
+from build.daytrip import DEPART_AFTER, RETURN_BY
 from build.gtfs_ingest import load_gtfs
 from build.network import network_geojson
-from build.origins import DEFAULT_LIMIT, pick_major_stations, pick_origins
+from build.origins import pick_major_stations
 
 
-def build_all(gtfs_path: Path, out_dir: Path, limit: int = DEFAULT_LIMIT) -> None:
+def build_all(gtfs_path: Path, out_dir: Path, major_limit: int = 15) -> None:
     service_ids, date = monday_service_ids(gtfs_path)
     print(f"сервісний понеділок: {date} ({len(service_ids)} service_id)", file=sys.stderr)
 
     feed = load_gtfs(gtfs_path, service_ids=service_ids)
-    print(f"{feed.n_stops} зупинок, {feed.n_patterns} патернів", file=sys.stderr)
+    print(f"{feed.n_stops} станцій, {feed.n_patterns} патернів", file=sys.stderr)
 
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    write_binary_feed(feed, out_dir)
+    print(f"бінарний фід: {(out_dir / 'feed.bin').stat().st_size / 1e6:.1f} МБ", file=sys.stderr)
+
     network = network_geojson(feed)
     (out_dir / "network.json").write_text(json.dumps(network, separators=(",", ":")))
     print(f"мережа: {len(network['features'])} ділянок", file=sys.stderr)
 
-    reversed_feed = feed.reversed()
+    major = pick_major_stations(feed, limit=major_limit)
 
-    # Головні вокзали — те, що видно на карті кільцями. Вони мають бути
-    # прорахованими завжди, навіть якщо за кількістю рейсів не потрапляють
-    # у топ: місто без свого Hbf на карті виглядає зламано.
-    major = pick_major_stations(feed)
-    ranked = pick_origins(feed, limit=limit)
-    origins = major + [o for o in ranked if o not in set(major)]
-    print(f"{len(major)} головних вокзалів, {len(origins)} origin-ів усього", file=sys.stderr)
-
-    origins_dir = out_dir / "origins"
-    origins_dir.mkdir(parents=True, exist_ok=True)
-
-    used: set[str] = set()
-    for n, origin in enumerate(origins, 1):
-        windows = day_trip_windows(
-            feed, origin, DEPART_AFTER, RETURN_BY, reversed_feed=reversed_feed
-        )
-        (origins_dir / f"{origin}.json").write_text(
-            json.dumps({"origin": origin, "stations": windows}, separators=(",", ":"))
-        )
-        used.add(origin)
-        used.update(windows)
-        if n % 50 == 0:
-            print(f"  {n}/{len(origins)}", file=sys.stderr)
-
+    # Індекс покриває всі станції: клік по карті може влучити в будь-яку.
     stations = {
         str(sid): {
+            "i": i,
             "name": str(feed.stop_names[i]),
             "lat": round(float(feed.stop_lats[i]), 5),
             "lon": round(float(feed.stop_lons[i]), 5),
         }
         for i, sid in enumerate(feed.stop_ids)
-        if str(sid) in used
     }
     (out_dir / "stations.json").write_text(
         json.dumps(
             {
                 "date": date.isoformat(),
-                "depart_after": DEPART_AFTER,
-                "return_by": RETURN_BY,
-                "origins": origins,
+                "departAfter": DEPART_AFTER,
+                "returnBy": RETURN_BY,
                 "major": major,
                 "stations": stations,
             },
             separators=(",", ":"),
         )
     )
-    print(f"готово: {len(origins)} origin-ів, {len(stations)} станцій", file=sys.stderr)
+    print(f"готово: {len(stations)} станцій, {len(major)} головних вокзалів", file=sys.stderr)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Зібрати day-trip дані з GTFS-фіду")
+    parser = argparse.ArgumentParser(description="Зібрати дані з GTFS-фіду")
     parser.add_argument("gtfs", type=Path, help="шлях до GTFS zip")
     parser.add_argument("--out", type=Path, default=Path("web/public/data"))
-    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
+    parser.add_argument("--major", type=int, default=15)
     args = parser.parse_args()
-    build_all(args.gtfs, args.out, args.limit)
+    build_all(args.gtfs, args.out, args.major)
 
 
 if __name__ == "__main__":
