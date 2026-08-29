@@ -315,11 +315,8 @@ class Feed:
 
     def trip_slice(self, p: int, trip: int) -> slice:
         """Зріз trip_arr/trip_dep для рейсу trip патерна p."""
-        length = self.pattern_length(p)
-        offset = int(self.pattern_trip_ptr[p]) * 0
         base = int(self.trip_block_start[trip])
-        del offset
-        return slice(base, base + length)
+        return slice(base, base + self.pattern_length(p))
 
     @cached_property
     def trip_block_start(self) -> np.ndarray:
@@ -436,15 +433,6 @@ class Feed:
             transfer_to=self.transfer_to,
             transfer_time=self.transfer_time,
         )
-```
-
-Прибрати мертві рядки в `trip_slice` (`offset`, `del offset`) — вони лишились від чернетки; метод має бути таким:
-
-```python
-    def trip_slice(self, p: int, trip: int) -> slice:
-        """Зріз trip_arr/trip_dep для рейсу trip патерна p."""
-        base = int(self.trip_block_start[trip])
-        return slice(base, base + self.pattern_length(p))
 ```
 
 - [ ] **Step 4: Запустити тести — мають пройти**
@@ -1736,7 +1724,11 @@ export function buildZones(points, breaks, options = {}) {
 cd web && npm test
 ```
 
-Expected: 11 passed (6 з metrics + 5 з grid... якщо `buildZones` падає на turf-імпортах, замінити імпорти на `import * as turf from '@turf/turf'` і викликати `turf.isobands` / `turf.interpolate` / `turf.featureCollection`).
+Expected: 13 passed (6 з `metrics.test.js` + 7 з `grid.test.js`).
+
+Якщо тести падають на імпортах turf — замінити три іменовані імпорти на
+`import * as turf from '@turf/turf'` і викликати `turf.featureCollection`,
+`turf.interpolate`, `turf.isobands`. Логіка не змінюється.
 
 - [ ] **Step 5: Commit**
 
@@ -1978,14 +1970,17 @@ map.on('load', async () => {
 });
 ```
 
-- [ ] **Step 4: Зібрати дані на фікстурі й запустити dev-сервер**
+- [ ] **Step 4: Перевірити, що фронтенд збирається**
 
 ```bash
-.venv/bin/python -m build.cli /dev/null --out web/public/data 2>/dev/null || echo "потрібен реальний фід — див. README"
-cd web && npm run build
+cd web && npm run build && ls dist/index.html
 ```
 
-Expected: `npm run build` завершується без помилок (дані можуть бути відсутні — це перевіряється вручну після збірки реального фіду).
+Expected: `dist/index.html` існує, збірка без помилок імпорту.
+
+Даних у `web/public/data/` на цьому кроці ще немає — карта відкриється й
+покаже банер помилки завантаження. Це очікувано: реальні дані зʼявляться
+після збірки справжнього фіду (див. «Що лишається зробити вручну»).
 
 - [ ] **Step 5: Commit**
 
