@@ -6,10 +6,14 @@ import { buildZones } from './grid.js';
 import { DEPART_AFTER, RETURN_BY } from './daytrip.js';
 
 const DATA = `${import.meta.env.BASE_URL}data`;
-// Секвенційна шкала: один тон бренду, світло -> темно. Магнітуда дублюється
-// радіусом, бо два світлі кроки не дотягують до 3:1 на папері.
+// Секвенційна шкала: один тон бренду, світло -> темно.
+//
+// Величину кодує лише колір, а марки напівпрозорі, тому рампа темніша за
+// брендовий сигнал: при 50% на папері світлі кроки просто зникають.
 const BREAKS = [4 * 3600, 6 * 3600, 8 * 3600];
-const SEQ = ['#f6b48c', '#f08a57', '#ea5212', '#93300a'];
+const SEQ = ['#e8763a', '#d4500f', '#a83a0b', '#5e1f06'];
+const DOT_RADIUS = 3.5;
+const DOT_OPACITY = 0.5;
 const EMPTY = { type: 'FeatureCollection', features: [] };
 // Німеччина цілком: карта відкривається на весь контур, а не на точці.
 const GERMANY = [[5.87, 47.27], [15.04, 55.06]];
@@ -216,17 +220,14 @@ function addLayers() {
     type: 'circle',
     source: 'stations',
     paint: {
-      'circle-radius': [
-        'step', ['get', 'useful'],
-        2.5, BREAKS[0], 3.5, BREAKS[1], 4.5, BREAKS[2], 5.5,
-      ],
+      'circle-radius': DOT_RADIUS,
       'circle-color': [
         'step', ['get', 'useful'],
         SEQ[0], BREAKS[0], SEQ[1], BREAKS[1], SEQ[2], BREAKS[2], SEQ[3],
       ],
-      // кільце кольору паперу розділяє накладені марки
-      'circle-stroke-width': 1,
-      'circle-stroke-color': '#ffffff',
+      // Накладені марки розділяє сама прозорість, а не біле кільце:
+      // при 50% воно лише висвітлювало б колір.
+      'circle-opacity': DOT_OPACITY,
     },
   });
 
