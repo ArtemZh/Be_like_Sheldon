@@ -29,3 +29,18 @@ def test_geojson_is_linestring_collection(gtfs_zip):
     assert gj["type"] == "FeatureCollection"
     assert all(f["geometry"]["type"] == "LineString" for f in gj["features"])
     assert all(len(f["geometry"]["coordinates"]) == 2 for f in gj["features"])
+
+
+def test_drops_edges_longer_than_the_limit(gtfs_zip):
+    feed = load_gtfs(gtfs_zip)
+    a, d = (feed.stop_index[x] for x in ("A", "D"))
+    # A(52.5, 13.4) -> D(53.0, 10.0) — це понад 230 км
+    assert (min(a, d), max(a, d)) in network_edges(feed, max_km=1000)
+    assert (min(a, d), max(a, d)) not in network_edges(feed)
+
+
+def test_short_edges_survive(gtfs_zip):
+    feed = load_gtfs(gtfs_zip)
+    a, b = (feed.stop_index[x] for x in ("A", "B"))
+    # A -> B це ~65 км
+    assert (min(a, b), max(a, b)) in network_edges(feed)

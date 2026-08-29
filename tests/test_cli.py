@@ -30,4 +30,5 @@ def test_writes_network_geojson(gtfs_zip, tmp_path):
     build_all(gtfs_zip, tmp_path)
     network = json.loads((tmp_path / "network.json").read_text())
     assert network["type"] == "FeatureCollection"
-    assert len(network["features"]) == 3
+    # A-B і B-C; A-D довша за 100 км і відкидається як експресна
+    assert len(network["features"]) == 2
