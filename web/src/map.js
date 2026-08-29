@@ -10,7 +10,7 @@ const COLORS = ['#2b4a5a', '#2f7d78', '#4cc9a0', '#a8e05f', '#f9d423'];
 const EMPTY = { type: 'FeatureCollection', features: [] };
 
 const el = (id) => document.getElementById(id);
-const state = { index: null, windows: null };
+const state = { index: null, windows: null, layersReady: false };
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -52,6 +52,8 @@ function render() {
     ? `${points.length} станцій підходить`
     : 'Звідси за цей день нікуди не зʼїздиш';
 
+  if (!state.layersReady) return;
+
   map.getSource('stations').setData({
     type: 'FeatureCollection',
     features: points.map((p) => ({
@@ -75,7 +77,7 @@ async function selectOrigin(stopId) {
   }
 }
 
-map.on('load', async () => {
+function addLayers() {
   map.addSource('zones', { type: 'geojson', data: EMPTY });
   map.addLayer({
     id: 'zones',
@@ -115,6 +117,19 @@ map.on('load', async () => {
       .addTo(map);
   });
 
+  state.layersReady = true;
+  render();
+}
+
+/**
+ * Контроли й дані не чекають на карту.
+ *
+ * MapLibre вимагає WebGL і мережевого стилю; якщо чіпляти весь UI до
+ * map.on('load'), то при повільному або заблокованому стилі сторінка
+ * виглядає порожньою, хоча дані вже є. Тому список станцій будується
+ * одразу, а шари додаються окремо, коли карта буде готова.
+ */
+async function initControls() {
   try {
     state.index = await loadJson(`${DATA}/stations.json`);
   } catch (error) {
@@ -122,11 +137,18 @@ map.on('load', async () => {
     return;
   }
 
+  // збірка ранжує origin-и за кількістю рейсів — для вибору зі списку
+  // потрібен алфавіт, інакше вгорі опиняється міська S-Bahn, а не міста
   const select = el('origin');
-  for (const stopId of state.index.origins) {
+  const labelled = state.index.origins.map((stopId) => ({
+    stopId,
+    name: state.index.stations[stopId]?.name ?? stopId,
+  }));
+  labelled.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  for (const { stopId, name } of labelled) {
     const option = document.createElement('option');
     option.value = stopId;
-    option.textContent = state.index.stations[stopId]?.name ?? stopId;
+    option.textContent = name;
     select.append(option);
   }
 
@@ -135,5 +157,9 @@ map.on('load', async () => {
     el(id).oninput = render;
   }
 
-  await selectOrigin(state.index.origins[0]);
-});
+  select.value = labelled[0].stopId;
+  await selectOrigin(labelled[0].stopId);
+}
+
+map.on('load', addLayers);
+initControls();
