@@ -421,3 +421,136 @@ input[type='range']::-webkit-slider-thumb {
   #panel { width: 100%; flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--line-soft); }
   #map { flex: 1; min-height: 55vh; }
 }
+
+
+/* Шкала часу — велика, по центру над картою. */
+#timeline {
+  position: fixed;
+  z-index: 3;
+  left: 340px;
+  right: 0;
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: min(660px, calc(100vw - 380px));
+  margin: 0 auto;
+  padding: 14px 20px;
+  background: var(--paper);
+  border-radius: var(--r-lg);
+  box-shadow: var(--lift);
+}
+
+#timeline[hidden] { display: none; }
+
+#timeline-play {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--paper);
+  background: var(--signal);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+#timeline-play svg { width: 16px; height: 16px; }
+#timeline-play svg[hidden] { display: none; }
+
+#timeline-track {
+  position: relative;
+  flex: 1;
+  height: 46px;
+}
+
+#timeline-profile {
+  position: absolute;
+  inset: 0 0 12px;
+  width: 100%;
+  height: 34px;
+}
+
+#timeline-area { fill: var(--line-soft); }
+
+#timeline-ticks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--grey-300);
+  pointer-events: none;
+}
+
+/* Повзунок лежить поверх профілю прозорою доріжкою. */
+#timeline-range {
+  position: absolute;
+  inset: 0 0 12px;
+  width: 100%;
+  height: 34px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+#timeline-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 34px;
+  border-radius: 3px;
+  background: transparent;
+  cursor: grab;
+}
+
+#timeline-head {
+  position: absolute;
+  top: -2px;
+  bottom: 12px;
+  width: 2px;
+  background: var(--signal);
+  pointer-events: none;
+  transform: translateX(-1px);
+}
+
+#timeline-clock {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 5px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--paper);
+  background: var(--signal);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+#timeline-count {
+  flex: 0 0 auto;
+  margin: 0;
+  min-width: 76px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--grey-500);
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  #timeline {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    bottom: 12px;
+  }
+}

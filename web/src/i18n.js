@@ -46,6 +46,10 @@ const STRINGS = {
     'intro.close': 'Pick a city',
     'photo.alt':
       'A train compartment: a passenger with a notebook by the window, a platform cart outside',
+    'timeline.play': 'Play the day',
+    'timeline.pause': 'Pause',
+    'timeline.live': '{n} reachable',
+    'time.nextDay': 'Tue',
     'time.hours': '{h} h',
     'time.hoursMinutes': '{h} h {m} min',
   },
@@ -88,6 +92,10 @@ const STRINGS = {
     'intro.close': 'Stadt wählen',
     'photo.alt':
       'Ein Zugabteil: ein Fahrgast mit Notizbuch am Fenster, draußen ein Bahnsteigwagen',
+    'timeline.play': 'Tag abspielen',
+    'timeline.pause': 'Pause',
+    'timeline.live': '{n} erreichbar',
+    'time.nextDay': 'Di',
     'time.hours': '{h} Std',
     'time.hoursMinutes': '{h} Std {m} Min',
   },
@@ -129,6 +137,10 @@ const STRINGS = {
     'intro.close': 'Wybierz miasto',
     'photo.alt':
       'Przedział pociągu: pasażer z notesem przy oknie, za oknem wózek na peronie',
+    'timeline.play': 'Odtwórz dzień',
+    'timeline.pause': 'Pauza',
+    'timeline.live': '{n} osiągalnych',
+    'time.nextDay': 'wt',
     'time.hours': '{h} godz',
     'time.hoursMinutes': '{h} godz {m} min',
   },
@@ -170,6 +182,10 @@ const STRINGS = {
     'intro.close': 'Обрати місто',
     'photo.alt':
       'Купе поїзда: пасажир із блокнотом біля вікна, за вікном перонний візок',
+    'timeline.play': 'Програти день',
+    'timeline.pause': 'Пауза',
+    'timeline.live': '{n} досяжних',
+    'time.nextDay': 'вт',
     'time.hours': '{h} год',
     'time.hoursMinutes': '{h} год {m} хв',
   },

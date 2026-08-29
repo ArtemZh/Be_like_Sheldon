@@ -66,6 +66,31 @@
     </aside>
     <div id="map"></div>
 
+    <!-- Шкала часу: один прохід показує обидва напрямки — станції
+         зʼявляються, коли туди можна доїхати, і гаснуть, коли останній
+         потяг назад уже пішов. -->
+    <div id="timeline" hidden>
+      <button type="button" id="timeline-play" data-i18n-aria="timeline.play">
+        <svg class="icon-play" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M5 3.5v9l8-4.5z" fill="currentColor" />
+        </svg>
+        <svg class="icon-pause" viewBox="0 0 16 16" aria-hidden="true" hidden>
+          <path d="M5 3.5h2.2v9H5zM8.8 3.5H11v9H8.8z" fill="currentColor" />
+        </svg>
+      </button>
+
+      <div id="timeline-track">
+        <svg id="timeline-profile" viewBox="0 0 600 34" preserveAspectRatio="none" aria-hidden="true">
+          <path id="timeline-area" d="" />
+        </svg>
+        <div id="timeline-ticks"></div>
+        <input id="timeline-range" type="range" min="0" max="1000" value="0" step="1" />
+        <div id="timeline-head"><span id="timeline-clock">09:00</span></div>
+      </div>
+
+      <p id="timeline-count"></p>
+    </div>
+
     <!-- Вступне вікно: показується один раз, далі відкривається з панелі. -->
     <div id="intro-backdrop" hidden></div>
     <div id="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title" hidden>

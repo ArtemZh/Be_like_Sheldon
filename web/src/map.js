@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { filterWindows, nearestOrigin } from './metrics.js';
 import { LANGUAGES, currentLanguage, formatHours, restoreLanguage, setLanguage, t } from './i18n.js';
 import { buildZones } from './grid.js';
+import { EXPIRED, LIVE, liveProfile, phaseAt, profilePath } from './timeline.js';
 import { DEPART_AFTER, RETURN_BY, RETURN_BY_NEXT_MORNING } from './daytrip.js';
 
 const DATA = `${import.meta.env.BASE_URL}data`;
@@ -106,6 +107,9 @@ const state = {
   result: null, // останній результат воркера: типізовані масиви
   origin: null,
   window: 'day',
+  clock: null, // час анімації в секундах; null — показуємо весь день одразу
+  playing: false,
+  profile: null,
   network: null,
   layersReady: false,
 };
@@ -137,11 +141,38 @@ function currentPoints() {
   const minStay = Number(el('min-stay').value);
   const overhead = Number(el('overhead').value);
 
-  return filterWindows(state.result, { minStay, overhead }).flatMap((entry) => {
+  const passing = filterWindows(state.result, { minStay, overhead });
+  const clock = state.clock;
+
+  return passing.flatMap((entry) => {
     const station = state.byIndex[entry.stop];
     if (!station) return [];
-    return [{ ...station, useful: entry.useful, window: entry.window }];
+
+    // Поки годинник не запущено, показуємо весь день одразу.
+    if (clock === null) {
+      return [{ ...station, useful: entry.useful, window: entry.window }];
+    }
+
+    const phase = phaseAt(entry.window, clock);
+    if (phase !== LIVE && phase !== EXPIRED) return [];
+    return [
+      {
+        ...station,
+        useful: entry.useful,
+        window: entry.window,
+        expired: phase === EXPIRED,
+      },
+    ];
   });
+}
+
+/** Ті самі точки, але без фільтра за часом — профіль має бачити весь день. */
+function currentPointsIgnoringClock() {
+  const saved = state.clock;
+  state.clock = null;
+  const points = currentPoints();
+  state.clock = saved;
+  return points;
 }
 
 function render() {
@@ -158,6 +189,12 @@ function render() {
   }
 
   const points = currentPoints();
+  el('timeline').hidden = state.result === null;
+  if (state.result && state.clock === null) renderProfile(currentPointsIgnoringClock());
+  el('timeline-count').textContent =
+    state.clock === null
+      ? ''
+      : t('timeline.live', { n: points.filter((p) => !p.expired).length });
   // Стартом може бути будь-яка станція, а в списку лише головні вокзали,
   // тому назву обраної показуємо тут — інакше вона зникає.
   const name = state.index.stations[state.origin]?.name ?? '';
@@ -175,6 +212,7 @@ function render() {
         useful: p.useful,
         arrival: p.window[0],
         departure: p.window[1],
+        expired: p.expired === true,
       },
     })),
   });
@@ -189,7 +227,8 @@ function render() {
 let zonesTimer = null;
 function scheduleZones(points) {
   clearTimeout(zonesTimer);
-  if (!el('show-zones').checked) {
+  // Під час програвання зони не перебудовуємо: 45 мс на кадр з'їли б анімацію.
+  if (!el('show-zones').checked || state.playing) {
     map.getSource('zones').setData(EMPTY);
     return;
   }
@@ -246,7 +285,12 @@ function selectWindow(name) {
   renderLegendLabels();
 
   if (state.layersReady) {
-    map.setPaintProperty('stations', 'circle-color', stepExpression(['get', 'useful']));
+    map.setPaintProperty('stations', 'circle-color', [
+      'case',
+      ['get', 'expired'],
+      '#c9c9d0',
+      stepExpression(['get', 'useful']),
+    ]);
     map.setPaintProperty('zones', 'fill-color', stepExpression(['get', 'min']));
   }
 
@@ -311,11 +355,116 @@ function setUpIntro() {
   if (!introWasSeen()) openIntro();
 }
 
+/**
+ * Шкала часу.
+ *
+ * Один прохід від виїзду до дедлайну повернення. Зони на час програвання
+ * ховаються: їх перебудова коштує ~45 мс, а кадрів двадцять на секунду —
+ * крапки й так розповідають історію.
+ */
+// Темп рахуємо від реального часу, а не від кадрів: інакше швидкість
+// анімації залежала б від частоти оновлення екрана.
+const PLAYBACK_MINUTES_PER_SECOND = 45;
+
+function timelineRange() {
+  return { from: DEPART_AFTER, to: WINDOWS[state.window].returnBy };
+}
+
+function setClock(time, { fromSlider = false } = {}) {
+  const { from, to } = timelineRange();
+  state.clock = Math.min(Math.max(time, from), to);
+
+  const share = (state.clock - from) / (to - from);
+  if (!fromSlider) el('timeline-range').value = String(Math.round(share * 1000));
+  el('timeline-head').style.left = `${(share * 100).toFixed(3)}%`;
+  el('timeline-clock').textContent = clockTime(state.clock);
+  render();
+}
+
+function stopClock() {
+  state.playing = false;
+  state.clock = null;
+  updatePlayIcon();
+  render();
+}
+
+function updatePlayIcon() {
+  const button = el('timeline-play');
+  button.querySelector('.icon-play').hidden = state.playing;
+  button.querySelector('.icon-pause').hidden = !state.playing;
+  button.setAttribute('aria-label', t(state.playing ? 'timeline.pause' : 'timeline.play'));
+}
+
+let lastFrameAt = 0;
+
+function tick(now) {
+  if (!state.playing) return;
+  const { from, to } = timelineRange();
+
+  const elapsed = lastFrameAt ? (now - lastFrameAt) / 1000 : 0;
+  lastFrameAt = now;
+  const next = (state.clock ?? from) + elapsed * PLAYBACK_MINUTES_PER_SECOND * 60;
+
+  if (next >= to) {
+    setClock(to);
+    state.playing = false;
+    updatePlayIcon();
+    return;
+  }
+  setClock(next);
+  requestAnimationFrame(tick);
+}
+
+function togglePlay() {
+  const { from, to } = timelineRange();
+  if (state.playing) {
+    state.playing = false;
+    updatePlayIcon();
+    return;
+  }
+  // з кінця — починаємо спочатку
+  if (state.clock === null || state.clock >= to) setClock(from);
+  state.playing = true;
+  lastFrameAt = 0;
+  updatePlayIcon();
+  requestAnimationFrame(tick);
+}
+
+/** Підмітка під повзунком: скільки станцій досяжні в кожен момент. */
+function renderProfile(points) {
+  const { from, to } = timelineRange();
+  state.profile = liveProfile(points, { from, to });
+  el('timeline-area').setAttribute('d', profilePath(state.profile, 600, 34));
+
+  // Крок підбираємо під ширину: більше пʼяти підписів злипаються.
+  const spanHours = (to - from) / 3600;
+  const step = Math.max(1, Math.ceil(spanHours / 5));
+  const hours = [];
+  for (let h = Math.ceil(from / 3600); h <= Math.floor(to / 3600); h += step) {
+    hours.push(h);
+  }
+  el('timeline-ticks').innerHTML = hours
+    .map((h) => `<span>${clockTime(h * 3600)}</span>`)
+    .join('');
+}
+
+function setUpTimeline() {
+  el('timeline-play').onclick = togglePlay;
+  el('timeline-range').oninput = (event) => {
+    state.playing = false;
+    updatePlayIcon();
+    const { from, to } = timelineRange();
+    setClock(from + ((to - from) * Number(event.target.value)) / 1000, { fromSlider: true });
+  };
+  updatePlayIcon();
+}
+
 /** Час у секундах від півночі -> '18:05'. */
 function clockTime(seconds) {
-  const h = Math.floor(seconds / 3600) % 24;
+  const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  const label = `${String(h % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return h >= 24 ? `${label} ${t('time.nextDay')}` : label;
 }
 
 /**
@@ -400,6 +549,8 @@ function selectOrigin(stopId) {
   if (!station) return;
 
   state.origin = stopId;
+  state.clock = null;
+  state.playing = false;
   el('origin').value = stopId;
   el('status').textContent = t('status.computing');
   clearHint();
@@ -463,7 +614,13 @@ function addLayers() {
     source: 'stations',
     paint: {
       'circle-radius': DOT_RADIUS,
-      'circle-color': stepExpression(['get', 'useful']),
+      // Згасла станція сіріє: доїхати ще можна, повернутись — уже ні.
+      'circle-color': [
+        'case',
+        ['get', 'expired'],
+        '#c9c9d0',
+        stepExpression(['get', 'useful']),
+      ],
       'circle-opacity': 1,
     },
   });
@@ -579,6 +736,7 @@ async function initControls() {
   }
 
   makeDraggable(el('hint'));
+  setUpTimeline();
   setUpIntro();
   render();
 }
