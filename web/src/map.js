@@ -204,6 +204,76 @@ function selectWindow(name) {
   else render();
 }
 
+/**
+ * Вступне вікно.
+ *
+ * Показується один раз на браузер: далі його відкриває іконка на панелі.
+ * localStorage може кинути виняток (приватне вікно, заблоковані дані
+ * сайту), тому доступ до нього загорнутий — у найгіршому разі вікно просто
+ * зʼявлятиметься щоразу.
+ */
+const INTRO_SEEN_KEY = 'daytrip:intro-seen';
+
+function introWasSeen() {
+  try {
+    return localStorage.getItem(INTRO_SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function rememberIntroSeen() {
+  try {
+    localStorage.setItem(INTRO_SEEN_KEY, '1');
+  } catch {
+    // приватне вікно — просто не запамʼятовуємо
+  }
+}
+
+function openIntro() {
+  el('intro').hidden = false;
+  el('intro-backdrop').hidden = false;
+  el('intro-close').focus();
+}
+
+function closeIntro() {
+  el('intro').hidden = true;
+  el('intro-backdrop').hidden = true;
+  rememberIntroSeen();
+}
+
+/**
+ * Фото у вступному вікні — необовʼязкове.
+ *
+ * Якщо web/public/intro.jpg існує, показуємо його й ховаємо намальовану
+ * сцену; якщо ні — лишається ілюстрація, і жодної битої картинки.
+ */
+function setUpIntroImage() {
+  const photo = document.querySelector('.intro-photo');
+  const art = document.querySelector('.intro-art');
+  const probe = new Image();
+  probe.onload = () => {
+    photo.hidden = false;
+    art.hidden = true;
+  };
+  probe.onerror = () => {
+    photo.remove();
+  };
+  probe.src = photo.getAttribute('src');
+}
+
+function setUpIntro() {
+  setUpIntroImage();
+  el('intro-close').onclick = closeIntro;
+  el('intro-backdrop').onclick = closeIntro;
+  el('intro-open').onclick = openIntro;
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !el('intro').hidden) closeIntro();
+  });
+
+  if (!introWasSeen()) openIntro();
+}
+
 /** Час у секундах від півночі -> '18:05'. */
 function clockTime(seconds) {
   const h = Math.floor(seconds / 3600) % 24;
@@ -463,6 +533,7 @@ async function initControls() {
   }
 
   makeDraggable(el('hint'));
+  setUpIntro();
   render();
 }
 
