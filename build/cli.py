@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 from build.binary_feed import write_binary_feed
-from build.calendar_pick import monday_service_ids
+from build.calendar_pick import monday_service_days
 from build.daytrip import DEPART_AFTER, RETURN_BY
 from build.gtfs_ingest import load_gtfs
 from build.network import network_geojson
@@ -21,10 +21,14 @@ from build.origins import pick_major_stations
 
 
 def build_all(gtfs_path: Path, out_dir: Path, major_limit: int = 15) -> None:
-    service_ids, date = monday_service_ids(gtfs_path)
-    print(f"сервісний понеділок: {date} ({len(service_ids)} service_id)", file=sys.stderr)
+    days, date = monday_service_days(gtfs_path)
+    print(
+        f"сервісний понеділок: {date}; "
+        + ", ".join(f"{len(s)} service_id зі зсувом {o // 3600} год" for s, o in days),
+        file=sys.stderr,
+    )
 
-    feed = load_gtfs(gtfs_path, service_ids=service_ids)
+    feed = load_gtfs(gtfs_path, days=days)
     print(f"{feed.n_stops} станцій, {feed.n_patterns} патернів", file=sys.stderr)
 
     out_dir.mkdir(parents=True, exist_ok=True)

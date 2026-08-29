@@ -20,12 +20,12 @@ const { dayTripWindows } = await import('../web/src/daytrip.js');
 
 const python = `
 import json
-from build.calendar_pick import monday_service_ids
+from build.calendar_pick import monday_service_days
 from build.daytrip import day_trip_windows
 from build.gtfs_ingest import load_gtfs
 
-services, _ = monday_service_ids("gtfs/db.zip")
-feed = load_gtfs("gtfs/db.zip", service_ids=services)
+days, _ = monday_service_days("gtfs/db.zip")
+feed = load_gtfs("gtfs/db.zip", days=days)
 rev = feed.reversed()
 names = {str(n): i for i, n in enumerate(feed.stop_names)}
 out = {}

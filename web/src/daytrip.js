@@ -10,6 +10,8 @@ import { earliestArrivals, UNREACHABLE } from './raptor.js';
 
 export const DEPART_AFTER = 9 * 3600;
 export const RETURN_BY = 23 * 3600;
+/** 09:00 наступного дня — 33 години від півночі дня виїзду. */
+export const RETURN_BY_NEXT_MORNING = 33 * 3600;
 
 export function dayTripWindows(feed, reversed, origin, departAfter = DEPART_AFTER, returnBy = RETURN_BY) {
   const forward = earliestArrivals(feed, origin, departAfter);

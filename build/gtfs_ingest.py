@@ -28,7 +28,19 @@ def parse_time(value: str) -> int:
     return h * 3600 + m * 60 + s
 
 
-def load_gtfs(path: Path, service_ids: set[str] | None = None) -> Feed:
+def load_gtfs(path: Path, days: list[tuple[set[str], int]] | None = None) -> Feed:
+    """Зібрати Feed із GTFS.
+
+    days — це послідовність сервісних днів: (які service_id їздять, зсув у
+    секундах). Наприклад [(понеділкові, 0), (вівторкові, 86400)].
+
+    Рейс, чий сервіс їздить обидва дні, входить у розклад двічі — окремими
+    рейсами з різними часами. Це не дублювання: понеділковий о 06:00 і
+    вівторковий о 06:00 — різні потяги, і для поїздки «до ранку наступного
+    дня» потрібен саме другий.
+
+    None означає «усі рейси без зсуву» — так зручно в тестах.
+    """
     with zipfile.ZipFile(path) as z:
         names = set(z.namelist())
         for required in REQUIRED_FILES:
@@ -45,12 +57,15 @@ def load_gtfs(path: Path, service_ids: set[str] | None = None) -> Feed:
     stop_ids, index, names, lats, lons = _collapse_to_stations(stops)
 
     rail_routes = {r["route_id"] for r in routes if r["route_type"] in RAIL_ROUTE_TYPES}
-    keep_trips = {
-        t["trip_id"]
-        for t in trips
-        if t["route_id"] in rail_routes
-        and (service_ids is None or t["service_id"] in service_ids)
-    }
+    schedule = days if days is not None else [(None, 0)]
+    offsets_of_trip: dict[str, list[int]] = {}
+    for trip in trips:
+        if trip["route_id"] not in rail_routes:
+            continue
+        for service_ids, offset in schedule:
+            if service_ids is None or trip["service_id"] in service_ids:
+                offsets_of_trip.setdefault(trip["trip_id"], []).append(offset)
+    keep_trips = set(offsets_of_trip)
 
     by_trip: dict[str, list[dict[str, str]]] = defaultdict(list)
     for st in stop_times:
@@ -58,12 +73,15 @@ def load_gtfs(path: Path, service_ids: set[str] | None = None) -> Feed:
             by_trip[st["trip_id"]].append(st)
 
     patterns: dict[tuple[int, ...], list[tuple[list[int], list[int]]]] = defaultdict(list)
-    for rows in by_trip.values():
+    for trip_id, rows in by_trip.items():
         rows.sort(key=lambda r: int(r["stop_sequence"]))
         key = tuple(index[r["stop_id"]] for r in rows)
-        arr = [parse_time(r["arrival_time"]) for r in rows]
-        dep = [parse_time(r["departure_time"]) for r in rows]
-        patterns[key].append((arr, dep))
+        base_arr = [parse_time(r["arrival_time"]) for r in rows]
+        base_dep = [parse_time(r["departure_time"]) for r in rows]
+        for offset in offsets_of_trip[trip_id]:
+            patterns[key].append(
+                ([a + offset for a in base_arr], [d + offset for d in base_dep])
+            )
 
     pattern_ptr = [0]
     pattern_stops: list[int] = []

@@ -23,6 +23,7 @@ r_line1,mon,t_CBA_pm
 r_line2,mon,t_AD_am
 r_line2,mon,t_DA_pm
 r_bus,mon,t_bus
+r_line2,tue,t_DA_early
 """
 
 STOP_TIMES = """trip_id,arrival_time,departure_time,stop_id,stop_sequence
@@ -38,10 +39,13 @@ t_DA_pm,22:30:00,22:30:00,D,1
 t_DA_pm,24:30:00,24:30:00,A,2
 t_bus,09:00:00,09:00:00,A,1
 t_bus,09:15:00,09:15:00,E,2
+t_DA_early,06:00:00,06:00:00,D,1
+t_DA_early,08:00:00,08:00:00,A,2
 """
 
 CALENDAR = """service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date
 mon,1,0,0,0,0,0,0,20260101,20261231
+tue,0,1,0,0,0,0,0,20260101,20261231
 """
 
 

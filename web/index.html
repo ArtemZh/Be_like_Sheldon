@@ -15,7 +15,15 @@
   <body>
     <aside id="panel">
       <h1>Куди доїду за день</h1>
-      <p class="sub">Понеділок · 09:00 → 23:00</p>
+
+      <div id="window-switch" role="radiogroup" aria-label="Вікно поїздки">
+        <button type="button" data-window="day" aria-checked="true" role="radio">
+          День<small>пн 09:00 → 23:00</small>
+        </button>
+        <button type="button" data-window="night" aria-checked="false" role="radio">
+          Доба<small>пн 09:00 → вт 09:00</small>
+        </button>
+      </div>
 
       <label for="origin">Звідки</label>
       <select id="origin"></select>
@@ -33,21 +41,24 @@
       <div id="legend">
         <h2>Корисних годин на місці</h2>
         <ul>
-          <li><span class="dot" style="background: #e8763a"></span> до 4</li>
-          <li><span class="dot" style="background: #d4500f"></span> 4 — 6</li>
-          <li><span class="dot" style="background: #a83a0b"></span> 6 — 8</li>
-          <li><span class="dot" style="background: #5e1f06"></span> 8 і більше</li>
+          <li><span class="dot" style="background: #e8763a"></span><span class="label">до 4</span></li>
+          <li><span class="dot" style="background: #d4500f"></span><span class="label">4 — 6</span></li>
+          <li><span class="dot" style="background: #a83a0b"></span><span class="label">6 — 8</span></li>
+          <li><span class="dot" style="background: #5e1f06"></span><span class="label">8 і більше</span></li>
         </ul>
       </div>
     </aside>
     <div id="map"></div>
 
     <!-- Підказка живе окремим вікном, а не попапом на марці: попап
-         перехоплював би клік, а клік по станції задає новий старт. -->
-    <div id="hint" hidden>
+         перехоплював би клік, а клік по станції задає новий старт.
+         Вікно не зникає — коли нема чого показати, воно просто порожнє,
+         щоб не смикалось на кожному русі миші. Його можна перетягнути. -->
+    <div id="hint" class="is-empty">
       <p class="hint-name"></p>
       <p class="hint-useful"></p>
       <p class="hint-times"></p>
+      <p class="hint-placeholder">Наведіть на станцію</p>
     </div>
     <script type="module" src="/src/map.js"></script>
   </body>

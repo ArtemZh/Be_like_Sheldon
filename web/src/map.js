@@ -3,7 +3,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { filterWindows, formatHours, nearestOrigin } from './metrics.js';
 import { buildZones } from './grid.js';
-import { DEPART_AFTER, RETURN_BY } from './daytrip.js';
+import { DEPART_AFTER, RETURN_BY, RETURN_BY_NEXT_MORNING } from './daytrip.js';
 
 const DATA = `${import.meta.env.BASE_URL}data`;
 // Секвенційна шкала: один тон бренду, світло -> темно.
@@ -11,19 +11,48 @@ const DATA = `${import.meta.env.BASE_URL}data`;
 // Величину кодує лише колір, тому рампа темніша за брендовий сигнал:
 // на папері вона тримає контраст від 2.96 до 12.5, і сусідні біни
 // розрізняються без допомоги розміру.
-const BREAKS = [4 * 3600, 6 * 3600, 8 * 3600];
 const SEQ = ['#e8763a', '#d4500f', '#a83a0b', '#5e1f06'];
 const DOT_RADIUS = 3.5;
+
+/**
+ * Вікна поїздки. Денне закінчується ввечері того самого дня, добове —
+ * вранці наступного, тому в ньому працюють нічні потяги й ранкові рейси
+ * вівторка.
+ *
+ * Пороги шкали свої для кожного вікна: 4/6/8 годин на добовому вікні
+ * насичуються майже скрізь, і карта стає рівномірно темною.
+ */
+const WINDOWS = {
+  day: {
+    returnBy: RETURN_BY,
+    maxStay: 12 * 3600,
+    breaks: [4 * 3600, 6 * 3600, 8 * 3600],
+    labels: ['до 4', '4 — 6', '6 — 8', '8 і більше'],
+  },
+  night: {
+    returnBy: RETURN_BY_NEXT_MORNING,
+    maxStay: 24 * 3600,
+    breaks: [8 * 3600, 12 * 3600, 16 * 3600],
+    labels: ['до 8', '8 — 12', '12 — 16', '16 і більше'],
+  },
+};
 const EMPTY = { type: 'FeatureCollection', features: [] };
 // Німеччина цілком: карта відкривається на весь контур, а не на точці.
 const GERMANY = [[5.87, 47.27], [15.04, 55.06]];
 
 const el = (id) => document.getElementById(id);
+
+/** Вираз MapLibre «поріг -> колір» для поточного вікна поїздки. */
+function stepExpression(value) {
+  const { breaks } = WINDOWS[state.window];
+  return ['step', value, SEQ[0], breaks[0], SEQ[1], breaks[1], SEQ[2], breaks[2], SEQ[3]];
+}
 const state = {
   index: null,
   byIndex: null, // порядковий номер станції у фіді -> її запис
   result: null, // останній результат воркера: типізовані масиви
   origin: null,
+  window: 'day',
   network: null,
   layersReady: false,
 };
@@ -112,7 +141,7 @@ function scheduleZones(points) {
     return;
   }
   zonesTimer = setTimeout(() => {
-    map.getSource('zones').setData(buildZones(points, BREAKS));
+    map.getSource('zones').setData(buildZones(points, WINDOWS[state.window].breaks));
   }, 180);
 }
 
@@ -143,6 +172,38 @@ function renderOrigins() {
   });
 }
 
+/**
+ * Перемкнути вікно поїздки.
+ *
+ * Маршрути доводиться перераховувати: інший дедлайн повернення означає
+ * інші зворотні потяги. Це 20-40 мс, тож перемикач відповідає одразу.
+ */
+function selectWindow(name) {
+  if (!(name in WINDOWS) || name === state.window) return;
+  state.window = name;
+
+  for (const button of document.querySelectorAll('#window-switch button')) {
+    button.setAttribute('aria-checked', String(button.dataset.window === name));
+  }
+
+  const slider = el('min-stay');
+  slider.max = String(WINDOWS[name].maxStay);
+  if (Number(slider.value) > WINDOWS[name].maxStay) slider.value = slider.max;
+
+  const labels = document.querySelectorAll('#legend li .label');
+  WINDOWS[name].labels.forEach((text, i) => {
+    if (labels[i]) labels[i].textContent = text;
+  });
+
+  if (state.layersReady) {
+    map.setPaintProperty('stations', 'circle-color', stepExpression(['get', 'useful']));
+    map.setPaintProperty('zones', 'fill-color', stepExpression(['get', 'min']));
+  }
+
+  if (state.origin) selectOrigin(state.origin);
+  else render();
+}
+
 /** Час у секундах від півночі -> '18:05'. */
 function clockTime(seconds) {
   const h = Math.floor(seconds / 3600) % 24;
@@ -162,11 +223,52 @@ function showHint({ name, useful, arrival, departure }) {
   hint.querySelector('.hint-useful').textContent = `${formatHours(useful)} на місці`;
   hint.querySelector('.hint-times').textContent =
     `приїзд ${clockTime(arrival)} · назад ${clockTime(departure)}`;
-  hint.hidden = false;
+  hint.classList.remove('is-empty');
 }
 
-function hideHint() {
-  el('hint').hidden = true;
+/** Вікно лишається на екрані — порожніє лише його вміст. */
+function clearHint() {
+  el('hint').classList.add('is-empty');
+}
+
+/**
+ * Перетягування вікна підказки.
+ *
+ * Вікно висить над картою й перекриває частину полотна, тому людина має
+ * могти прибрати його з дороги. Позиція запамʼятовується у px від краю
+ * вікна перегляду — так само, як її задає CSS.
+ */
+function makeDraggable(node) {
+  let pointerId = null;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  node.addEventListener('pointerdown', (event) => {
+    pointerId = event.pointerId;
+    const box = node.getBoundingClientRect();
+    offsetX = event.clientX - box.left;
+    offsetY = event.clientY - box.top;
+    node.setPointerCapture(pointerId);
+    node.classList.add('is-dragging');
+  });
+
+  node.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== pointerId) return;
+    const box = node.getBoundingClientRect();
+    const maxLeft = window.innerWidth - box.width;
+    const maxTop = window.innerHeight - box.height;
+    node.style.left = `${Math.min(Math.max(0, event.clientX - offsetX), maxLeft)}px`;
+    node.style.top = `${Math.min(Math.max(0, event.clientY - offsetY), maxTop)}px`;
+  });
+
+  const release = (event) => {
+    if (event.pointerId !== pointerId) return;
+    node.releasePointerCapture(pointerId);
+    pointerId = null;
+    node.classList.remove('is-dragging');
+  };
+  node.addEventListener('pointerup', release);
+  node.addEventListener('pointercancel', release);
 }
 
 /**
@@ -189,12 +291,12 @@ function selectOrigin(stopId) {
   state.origin = stopId;
   el('origin').value = stopId;
   el('status').textContent = 'Рахую…';
-  hideHint();
+  clearHint();
   worker.postMessage({
     type: 'route',
     origin: station.i,
     departAfter: DEPART_AFTER,
-    returnBy: RETURN_BY,
+    returnBy: WINDOWS[state.window].returnBy,
   });
 }
 
@@ -238,10 +340,7 @@ function addLayers() {
     type: 'fill',
     source: 'zones',
     paint: {
-      'fill-color': [
-        'step', ['get', 'min'],
-        SEQ[0], BREAKS[0], SEQ[1], BREAKS[1], SEQ[2], BREAKS[2], SEQ[3],
-      ],
+      'fill-color': stepExpression(['get', 'min']),
       'fill-opacity': 0.45,
     },
   });
@@ -253,10 +352,7 @@ function addLayers() {
     source: 'stations',
     paint: {
       'circle-radius': DOT_RADIUS,
-      'circle-color': [
-        'step', ['get', 'useful'],
-        SEQ[0], BREAKS[0], SEQ[1], BREAKS[1], SEQ[2], BREAKS[2], SEQ[3],
-      ],
+      'circle-color': stepExpression(['get', 'useful']),
       'circle-opacity': 1,
     },
   });
@@ -290,7 +386,7 @@ function addLayers() {
   });
 
   map.on('mouseleave', 'stations', () => {
-    hideHint();
+    clearHint();
     map.getCanvas().style.cursor = 'crosshair';
   });
 
@@ -358,10 +454,15 @@ async function initControls() {
   select.onchange = () => {
     if (select.value) selectOrigin(select.value);
   };
+
+  for (const button of document.querySelectorAll('#window-switch button')) {
+    button.onclick = () => selectWindow(button.dataset.window);
+  }
   for (const id of ['min-stay', 'overhead', 'show-zones']) {
     el(id).oninput = render;
   }
 
+  makeDraggable(el('hint'));
   render();
 }
 

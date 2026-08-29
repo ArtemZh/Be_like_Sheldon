@@ -60,14 +60,42 @@ body {
   margin: 0 0 6px;
 }
 
-.sub {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--grey-500);
-  margin: 0 0 28px;
+/* Перемикач вікна поїздки. Рамка є, бо на нього натискають. */
+#window-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 14px 0 26px;
 }
+
+#window-switch button {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  font: 500 13px var(--sans);
+  color: var(--grey-700);
+  text-align: left;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+#window-switch button small {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--grey-500);
+}
+
+#window-switch button[aria-checked='true'] {
+  color: var(--ink);
+  border-color: var(--signal);
+  box-shadow: inset 0 0 0 1px var(--signal);
+}
+
+#window-switch button[aria-checked='true'] small { color: var(--signal); }
 
 label {
   display: block;
@@ -211,20 +239,33 @@ input[type='range']::-webkit-slider-thumb {
 #hint {
   position: fixed;
   top: 20px;
-  right: 20px;
+  left: 360px; /* одразу праворуч від бічної панелі */
   z-index: 2;
-  min-width: 190px;
-  max-width: 260px;
+  width: 210px;
+  min-height: 74px;
   padding: 13px 15px;
   background: var(--paper);
   border-radius: var(--r-md);
   box-shadow: var(--lift);
-  pointer-events: none;
+  cursor: grab;
+  user-select: none;
 }
 
-#hint[hidden] { display: none; }
+#hint.is-dragging { cursor: grabbing; }
 
 #hint p { margin: 0; }
+
+.hint-placeholder {
+  font-size: 13px;
+  color: var(--grey-300);
+}
+
+/* Порожній стан: розміри не стрибають, лишається сама підказка. */
+#hint.is-empty .hint-name,
+#hint.is-empty .hint-useful,
+#hint.is-empty .hint-times { display: none; }
+
+#hint:not(.is-empty) .hint-placeholder { display: none; }
 
 .hint-name {
   font-weight: 600;
@@ -266,6 +307,7 @@ input[type='range']::-webkit-slider-thumb {
 
 @media (max-width: 760px) {
   body { flex-direction: column; }
+  #hint { left: 20px; right: 20px; max-width: none; }
   #panel { width: 100%; flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--line-soft); }
   #map { flex: 1; min-height: 55vh; }
 }

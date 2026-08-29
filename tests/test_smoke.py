@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from build.calendar_pick import monday_service_ids
+from build.calendar_pick import monday_service_days
 from build.daytrip import day_trip_windows
 from build.gtfs_ingest import load_gtfs
 
@@ -18,8 +18,8 @@ FEED = Path("gtfs/db.zip")
 def real_feed():
     if not FEED.exists():
         pytest.skip("немає gtfs/db.zip — див. README")
-    service_ids, _ = monday_service_ids(FEED)
-    return load_gtfs(FEED, service_ids=service_ids)
+    days, _ = monday_service_days(FEED)
+    return load_gtfs(FEED, days=days)
 
 
 def find_station(feed, name: str) -> str:
