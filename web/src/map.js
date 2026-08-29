@@ -4,7 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { filterWindows, nearestOrigin } from './metrics.js';
 import { LANGUAGES, currentLanguage, formatHours, restoreLanguage, setLanguage, t } from './i18n.js';
 import { buildZones } from './grid.js';
-import { EXPIRED, LIVE, liveProfile, phaseAt, profilePath } from './timeline.js';
+import { EXPIRED, LIVE, liveProfile, phaseAt, profileOutline, profilePath } from './timeline.js';
 import { DEPART_AFTER, RETURN_BY, RETURN_BY_NEXT_MORNING } from './daytrip.js';
 
 const DATA = `${import.meta.env.BASE_URL}data`;
@@ -175,9 +175,18 @@ function currentPointsIgnoringClock() {
   return points;
 }
 
+/** Частка пройденого для заливки доріжки слайдера. */
+function paintSliderFill(id) {
+  const slider = el(id);
+  const share = (Number(slider.value) - Number(slider.min)) / (Number(slider.max) - Number(slider.min));
+  slider.style.setProperty('--fill', `${(share * 100).toFixed(1)}%`);
+}
+
 function render() {
   el('min-stay-value').textContent = formatHours(Number(el('min-stay').value));
   el('overhead-value').textContent = formatHours(Number(el('overhead').value));
+  paintSliderFill('min-stay');
+  paintSliderFill('overhead');
   if (!state.layersReady) return;
 
   renderOrigins();
@@ -191,10 +200,14 @@ function render() {
   const points = currentPoints();
   el('timeline').hidden = state.result === null;
   if (state.result && state.clock === null) renderProfile(currentPointsIgnoringClock());
-  el('timeline-count').textContent =
-    state.clock === null
-      ? ''
-      : t('timeline.live', { n: points.filter((p) => !p.expired).length });
+  if (state.clock === null) {
+    el('timeline-count').textContent = '';
+    el('timeline-clock').textContent = clockTime(timelineRange().from);
+  } else {
+    el('timeline-count').textContent = t('timeline.live', {
+      n: points.filter((p) => !p.expired).length,
+    });
+  }
   // Стартом може бути будь-яка станція, а в списку лише головні вокзали,
   // тому назву обраної показуємо тут — інакше вона зникає.
   const name = state.index.stations[state.origin]?.name ?? '';
@@ -377,6 +390,8 @@ function setClock(time, { fromSlider = false } = {}) {
   const share = (state.clock - from) / (to - from);
   if (!fromSlider) el('timeline-range').value = String(Math.round(share * 1000));
   el('timeline-head').style.left = `${(share * 100).toFixed(3)}%`;
+  // профіль подвоюється як індикатор прогресу: пройдене залито сигналом
+  el('timeline-clip-rect').setAttribute('width', String((share * 600).toFixed(2)));
   el('timeline-clock').textContent = clockTime(state.clock);
   render();
 }
@@ -389,10 +404,11 @@ function stopClock() {
 }
 
 function updatePlayIcon() {
-  const button = el('timeline-play');
-  button.querySelector('.icon-play').hidden = state.playing;
-  button.querySelector('.icon-pause').hidden = !state.playing;
-  button.setAttribute('aria-label', t(state.playing ? 'timeline.pause' : 'timeline.play'));
+  el('timeline').classList.toggle('is-playing', state.playing);
+  el('timeline-play').setAttribute(
+    'aria-label',
+    t(state.playing ? 'timeline.pause' : 'timeline.play'),
+  );
 }
 
 let lastFrameAt = 0;
@@ -434,7 +450,10 @@ function togglePlay() {
 function renderProfile(points) {
   const { from, to } = timelineRange();
   state.profile = liveProfile(points, { from, to });
-  el('timeline-area').setAttribute('d', profilePath(state.profile, 600, 34));
+  const area = profilePath(state.profile, 600, 40);
+  el('timeline-area-future').setAttribute('d', area);
+  el('timeline-area-past').setAttribute('d', area);
+  el('timeline-outline').setAttribute('d', profileOutline(state.profile, 600, 40));
 
   // Крок підбираємо під ширину: більше пʼяти підписів злипаються.
   const spanHours = (to - from) / 3600;
@@ -625,6 +644,21 @@ function addLayers() {
     },
   });
 
+  // Кільце під курсором: марки дрібні, без нього не видно, на якій ти.
+  map.addSource('hover', { type: 'geojson', data: EMPTY });
+  map.addLayer({
+    id: 'hover',
+    type: 'circle',
+    source: 'hover',
+    paint: {
+      'circle-radius': 8,
+      'circle-color': 'rgba(0,0,0,0)',
+      'circle-stroke-width': 1.5,
+      'circle-stroke-color': '#121826',
+      'circle-stroke-opacity': 0.55,
+    },
+  });
+
   map.addSource('origins', { type: 'geojson', data: EMPTY });
   map.addLayer({
     id: 'origins',
@@ -649,12 +683,18 @@ function addLayers() {
   });
 
   map.on('mousemove', 'stations', (event) => {
-    showHint(event.features[0].properties);
+    const feature = event.features[0];
+    showHint(feature.properties);
+    map.getSource('hover').setData({
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', geometry: feature.geometry, properties: {} }],
+    });
     map.getCanvas().style.cursor = 'pointer';
   });
 
   map.on('mouseleave', 'stations', () => {
     clearHint();
+    map.getSource('hover').setData(EMPTY);
     map.getCanvas().style.cursor = 'crosshair';
   });
 

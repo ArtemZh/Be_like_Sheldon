@@ -54,14 +54,27 @@ export function liveProfile(points, { from, to, buckets = 120 }) {
   return { counts, peak, peakIndex };
 }
 
-/** Полілінія профілю у координатах 0..width / 0..height, готова для SVG. */
-export function profilePath({ counts, peak }, width, height) {
-  if (peak === 0) return '';
+/** Точки профілю в координатах 0..width / 0..height. */
+function profilePoints({ counts, peak }, width, height) {
   const step = width / (counts.length - 1 || 1);
-  const points = Array.from(counts, (value, i) => {
-    const x = (i * step).toFixed(2);
-    const y = (height - (value / peak) * height).toFixed(2);
-    return `${x},${y}`;
-  });
-  return `M0,${height} L${points.join(' L')} L${width},${height} Z`;
+  return Array.from(counts, (value, i) => [
+    Number((i * step).toFixed(2)),
+    Number((height - (value / peak) * height).toFixed(2)),
+  ]);
+}
+
+/** Замкнена площа профілю — для заливки. */
+export function profilePath(profile, width, height) {
+  if (profile.peak === 0) return '';
+  const points = profilePoints(profile, width, height);
+  const line = points.map(([x, y]) => `${x},${y}`).join(' L');
+  return `M0,${height} L${line} L${width},${height} Z`;
+}
+
+/** Тільки верхній контур — тонка лінія поверх заливки. */
+export function profileOutline(profile, width, height) {
+  if (profile.peak === 0) return '';
+  const points = profilePoints(profile, width, height);
+  const [first, ...rest] = points;
+  return `M${first[0]},${first[1]} L${rest.map(([x, y]) => `${x},${y}`).join(' L')}`;
 }

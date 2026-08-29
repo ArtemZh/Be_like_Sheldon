@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXPIRED, LIVE, PENDING, liveProfile, phaseAt, profilePath } from './timeline.js';
+import { EXPIRED, LIVE, PENDING, liveProfile, phaseAt, profileOutline, profilePath } from './timeline.js';
 
 describe('phaseAt', () => {
   const window = [10 * 3600, 18 * 3600];
@@ -56,5 +56,17 @@ describe('profilePath', () => {
     const path = profilePath({ counts: Uint16Array.from([0, 2, 1]), peak: 2 }, 100, 20);
     expect(path.startsWith('M0,20')).toBe(true);
     expect(path.endsWith('Z')).toBe(true);
+  });
+});
+
+describe('profileOutline', () => {
+  it('лише верхня лінія, без замикання', () => {
+    const path = profileOutline({ counts: Uint16Array.from([0, 2, 1]), peak: 2 }, 100, 20);
+    expect(path.startsWith('M0,20')).toBe(true);
+    expect(path.endsWith('Z')).toBe(false);
+  });
+
+  it('порожній профіль не дає лінії', () => {
+    expect(profileOutline({ counts: new Uint16Array(3), peak: 0 }, 100, 20)).toBe('');
   });
 });

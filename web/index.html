@@ -74,21 +74,34 @@
         <svg class="icon-play" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M5 3.5v9l8-4.5z" fill="currentColor" />
         </svg>
-        <svg class="icon-pause" viewBox="0 0 16 16" aria-hidden="true" hidden>
+        <svg class="icon-pause" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M5 3.5h2.2v9H5zM8.8 3.5H11v9H8.8z" fill="currentColor" />
         </svg>
       </button>
 
       <div id="timeline-track">
-        <svg id="timeline-profile" viewBox="0 0 600 34" preserveAspectRatio="none" aria-hidden="true">
-          <path id="timeline-area" d="" />
+        <svg id="timeline-profile" viewBox="0 0 600 40" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <clipPath id="timeline-clip">
+              <rect id="timeline-clip-rect" x="0" y="0" width="0" height="40" />
+            </clipPath>
+          </defs>
+          <path id="timeline-area-future" d="" />
+          <g clip-path="url(#timeline-clip)">
+            <path id="timeline-area-past" d="" />
+          </g>
+          <path id="timeline-outline" d="" />
         </svg>
-        <div id="timeline-ticks"></div>
+
+        <div id="timeline-head"></div>
         <input id="timeline-range" type="range" min="0" max="1000" value="0" step="1" />
-        <div id="timeline-head"><span id="timeline-clock">09:00</span></div>
+        <div id="timeline-ticks"></div>
       </div>
 
-      <p id="timeline-count"></p>
+      <div id="timeline-readout">
+        <span id="timeline-clock">09:00</span>
+        <span id="timeline-count"></span>
+      </div>
     </div>
 
     <!-- Вступне вікно: показується один раз, далі відкривається з панелі. -->

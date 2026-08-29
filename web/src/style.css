@@ -40,7 +40,7 @@ body {
   height: 100vh;
   font: 15px/1.55 var(--sans);
   color: var(--ink);
-  background: var(--paper);
+  background: linear-gradient(180deg, var(--paper) 0%, var(--surface-2) 100%);
 }
 
 /* Сіра лишається тільки бічна панель — картки живуть на папері. */
@@ -81,7 +81,15 @@ body {
   cursor: pointer;
 }
 
-#intro-open:hover { color: var(--signal); border-color: var(--signal); }
+#intro-open {
+  transition: color 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+#intro-open:hover {
+  color: var(--signal);
+  border-color: var(--signal);
+  transform: rotate(12deg);
+}
 #intro-open svg { width: 15px; height: 15px; }
 
 /* Вступне вікно поверх усього. */
@@ -90,6 +98,7 @@ body {
   inset: 0;
   z-index: 9;
   background: rgba(18, 24, 38, 0.28);
+  animation: fade 220ms ease both;
 }
 
 #intro {
@@ -105,6 +114,7 @@ body {
   background: var(--paper);
   border-radius: var(--r-lg);
   box-shadow: var(--lift);
+  animation: pop 300ms cubic-bezier(0.2, 0.75, 0.3, 1) both;
 }
 
 #intro[hidden], #intro-backdrop[hidden] { display: none; }
@@ -134,6 +144,7 @@ body {
 }
 
 #intro-close {
+  transition: transform 130ms ease, filter 130ms ease;
   margin-top: 10px;
   padding: 10px 16px;
   font: 500 14px var(--sans);
@@ -153,6 +164,7 @@ body {
 }
 
 #window-switch button {
+  transition: color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -219,23 +231,36 @@ select:focus-visible {
   box-shadow: 0 0 0 3px rgba(234, 82, 18, 0.16);
 }
 
-input[type='range'] {
+/* Пройдена частина доріжки заливається — значення видно й без цифри.
+   --fill проставляє JS у відсотках. */
+#panel input[type='range'] {
   width: 100%;
   appearance: none;
   height: 3px;
   border-radius: 2px;
-  background: var(--line);
+  background: linear-gradient(
+    to right,
+    var(--signal) 0%,
+    var(--signal) var(--fill, 0%),
+    var(--line) var(--fill, 0%),
+    var(--line) 100%
+  );
 }
 
-input[type='range']::-webkit-slider-thumb {
+#panel input[type='range']::-webkit-slider-thumb {
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  background: var(--signal);
+  background: var(--paper);
+  border: 2px solid var(--signal);
   cursor: pointer;
   box-shadow: var(--lift-sm);
+  transition: transform 130ms ease, box-shadow 130ms ease;
 }
+
+#panel input[type='range']:hover::-webkit-slider-thumb { transform: scale(1.12); }
+#panel input[type='range']:active::-webkit-slider-thumb { transform: scale(0.94); }
 
 .toggle {
   display: flex;
@@ -252,6 +277,7 @@ input[type='range']::-webkit-slider-thumb {
 .toggle input { accent-color: var(--signal); margin: 0; }
 
 #status {
+  transition: color 160ms ease;
   margin: 26px 0 0;
   font-size: 14px;
   color: var(--grey-700);
@@ -282,6 +308,7 @@ input[type='range']::-webkit-slider-thumb {
 /* Легенда — картка на папері, підняття тінню, не рамкою. */
 #legend {
   margin-top: 28px;
+  animation: rise 300ms cubic-bezier(0.2, 0.7, 0.3, 1) both 60ms;
   padding: 14px 15px;
   background: var(--paper);
   border-radius: var(--r-md);
@@ -336,6 +363,10 @@ input[type='range']::-webkit-slider-thumb {
   cursor: pointer;
 }
 
+#lang-switch button {
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
 #lang-switch button:hover { color: var(--ink); }
 
 #lang-switch button[aria-pressed='true'] {
@@ -347,6 +378,7 @@ input[type='range']::-webkit-slider-thumb {
 
 /* Зафіксована на екрані картка підказки. */
 #hint {
+  animation: rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
   position: fixed;
   top: 20px;
   left: 360px; /* одразу праворуч від бічної панелі */
@@ -423,30 +455,35 @@ input[type='range']::-webkit-slider-thumb {
 }
 
 
-/* Шкала часу — велика, по центру над картою. */
+/* Шкала часу — велика, по центру над картою.
+
+   Профіль досяжності служить водночас індикатором прогресу: пройдена
+   частина дня залита сигнальним кольором, майбутня лишається сірою. */
 #timeline {
   position: fixed;
   z-index: 3;
   left: 340px;
   right: 0;
-  bottom: 22px;
+  bottom: 24px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  width: min(660px, calc(100vw - 380px));
+  gap: 18px;
+  width: min(680px, calc(100vw - 384px));
   margin: 0 auto;
-  padding: 14px 20px;
+  padding: 16px 20px 14px;
   background: var(--paper);
   border-radius: var(--r-lg);
   box-shadow: var(--lift);
+  animation: rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 
 #timeline[hidden] { display: none; }
 
 #timeline-play {
   flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
+  position: relative;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -455,47 +492,54 @@ input[type='range']::-webkit-slider-thumb {
   border: none;
   border-radius: 50%;
   cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+  box-shadow: 0 6px 16px -8px rgba(234, 82, 18, 0.9);
 }
 
-#timeline-play svg { width: 16px; height: 16px; }
-#timeline-play svg[hidden] { display: none; }
+#timeline-play:hover { transform: scale(1.06); }
+#timeline-play:active { transform: scale(0.94); }
+
+#timeline-play svg {
+  grid-area: 1 / 1;
+  width: 16px;
+  height: 16px;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+#timeline-play .icon-play { transform: translateX(1px); }
+#timeline.is-playing .icon-play { opacity: 0; transform: scale(0.6); }
+#timeline:not(.is-playing) .icon-pause { opacity: 0; transform: scale(0.6); }
 
 #timeline-track {
   position: relative;
   flex: 1;
-  height: 46px;
+  height: 58px;
 }
 
 #timeline-profile {
   position: absolute;
-  inset: 0 0 12px;
+  inset: 0 0 18px;
   width: 100%;
-  height: 34px;
+  height: 40px;
+  overflow: visible;
 }
 
-#timeline-area { fill: var(--line-soft); }
+#timeline-area-future { fill: var(--line-soft); }
+#timeline-area-past { fill: rgba(234, 82, 18, 0.16); }
 
-#timeline-ticks {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  font-variant-numeric: tabular-nums;
-  display: flex;
-  justify-content: space-between;
-  font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.06em;
-  color: var(--grey-300);
-  pointer-events: none;
+#timeline-outline {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
 }
 
 /* Повзунок лежить поверх профілю прозорою доріжкою. */
 #timeline-range {
   position: absolute;
-  inset: 0 0 12px;
+  inset: 0 0 18px;
   width: 100%;
-  height: 34px;
+  height: 40px;
   margin: 0;
   appearance: none;
   background: transparent;
@@ -504,46 +548,91 @@ input[type='range']::-webkit-slider-thumb {
 
 #timeline-range::-webkit-slider-thumb {
   appearance: none;
-  width: 14px;
-  height: 34px;
-  border-radius: 3px;
+  width: 18px;
+  height: 40px;
   background: transparent;
   cursor: grab;
 }
 
+#timeline-range:active::-webkit-slider-thumb { cursor: grabbing; }
+
 #timeline-head {
   position: absolute;
-  top: -2px;
-  bottom: 12px;
-  width: 2px;
+  top: -4px;
+  bottom: 18px;
+  width: 1.5px;
   background: var(--signal);
+  border-radius: 1px;
   pointer-events: none;
-  transform: translateX(-1px);
+  transform: translateX(-0.75px);
+}
+
+#timeline-head::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  background: var(--signal);
+  border-radius: 50%;
+}
+
+/* Під час програвання голівка рухається щокадру — перехід лише для стрибків. */
+#timeline:not(.is-playing) #timeline-head { transition: left 180ms ease; }
+
+#timeline-ticks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--grey-300);
+  pointer-events: none;
+}
+
+#timeline-ticks span { position: relative; padding-top: 6px; }
+
+#timeline-ticks span::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 4px;
+  background: var(--line);
+}
+
+#timeline-readout {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 92px;
 }
 
 #timeline-clock {
-  position: absolute;
-  top: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 1px 5px;
   font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--paper);
-  background: var(--signal);
-  border-radius: 3px;
-  white-space: nowrap;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  letter-spacing: 0.02em;
 }
 
 #timeline-count {
-  flex: 0 0 auto;
-  margin: 0;
-  min-width: 76px;
   font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--grey-500);
-  text-align: right;
+  white-space: nowrap;
 }
 
 @media (max-width: 760px) {
@@ -552,5 +641,42 @@ input[type='range']::-webkit-slider-thumb {
     right: 12px;
     width: auto;
     bottom: 12px;
+    gap: 12px;
+    padding: 12px 14px 10px;
+  }
+
+  #timeline-readout { min-width: 74px; }
+  #timeline-clock { font-size: 15px; }
+}
+
+
+/* Мікроанімації. Усі короткі й односпрямовані: інтерфейс має відповідати,
+   а не виступати. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+button:active { transform: scale(0.97); }
+#intro-close:hover { filter: brightness(1.06); }
+
+/* Хто вимкнув анімації в системі — не отримує жодної. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
