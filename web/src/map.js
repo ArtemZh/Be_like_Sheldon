@@ -1,7 +1,7 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { filterStations, formatHours } from './metrics.js';
+import { filterStations, formatHours, nearestOrigin } from './metrics.js';
 import { buildZones } from './grid.js';
 
 const DATA = `${import.meta.env.BASE_URL}data`;
@@ -14,7 +14,7 @@ const EMPTY = { type: 'FeatureCollection', features: [] };
 const GERMANY = [[5.87, 47.27], [15.04, 55.06]];
 
 const el = (id) => document.getElementById(id);
-const state = { index: null, windows: null, origin: null, layersReady: false };
+const state = { index: null, windows: null, origin: null, network: null, layersReady: false };
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -96,16 +96,21 @@ function scheduleZones(points) {
 }
 
 /**
- * Станції відправлення на карті — з них починається робота.
+ * Головні вокзали на карті — з них починається робота.
  *
- * Поки старт не обрано, це єдине, що є на полотні: карта відкривається
- * порожньою Німеччиною й чекає на клік, а не рахує щось наперед.
+ * Поки старт не обрано, це єдині позначки на полотні: карта відкривається
+ * порожньою Німеччиною й чекає на клік, а не рахує щось наперед. Обраний
+ * старт додається до позначених, навіть якщо він не головний вокзал —
+ * інакше після кліку по глушині незрозуміло, звідки рахувало.
  */
 function renderOrigins() {
   if (!state.index) return;
+  // Кільцями світяться лише головні вокзали: решта origin-ів — міські
+  // платформи, які на карті країни перетворюються на кашу навколо Берліна.
+  const marked = new Set([...(state.index.major ?? []), state.origin].filter(Boolean));
   map.getSource('origins').setData({
     type: 'FeatureCollection',
-    features: state.index.origins.flatMap((stopId) => {
+    features: [...marked].flatMap((stopId) => {
       const station = state.index.stations[stopId];
       if (!station) return [];
       return [{
@@ -115,6 +120,17 @@ function renderOrigins() {
       }];
     }),
   });
+}
+
+/** Обрати старт за кліком по карті — найближчий із прорахованих. */
+function pickNearestOrigin(lngLat) {
+  if (!state.index) return;
+  const candidates = state.index.origins.flatMap((id) => {
+    const station = state.index.stations[id];
+    return station ? [{ id, lat: station.lat, lon: station.lon }] : [];
+  });
+  const nearest = nearestOrigin({ lat: lngLat.lat, lon: lngLat.lng }, candidates);
+  if (nearest) selectOrigin(nearest.id);
 }
 
 async function selectOrigin(stopId) {
@@ -131,6 +147,19 @@ async function selectOrigin(stopId) {
 }
 
 function addLayers() {
+  // Схема мережі лежить найнижче: вона контекст, а не дані відповіді.
+  map.addSource('network', { type: 'geojson', data: EMPTY });
+  map.addLayer({
+    id: 'network',
+    type: 'line',
+    source: 'network',
+    paint: {
+      'line-color': '#a8a8b0',
+      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.4, 9, 1.2],
+      'line-opacity': 0.55,
+    },
+  });
+
   map.addSource('zones', { type: 'geojson', data: EMPTY });
   map.addLayer({
     id: 'zones',
@@ -181,25 +210,25 @@ function addLayers() {
     },
   });
 
-  map.on('click', 'origins', (event) => {
-    selectOrigin(event.features[0].properties.id);
-  });
-  map.on('mouseenter', 'origins', () => {
-    map.getCanvas().style.cursor = 'pointer';
-  });
-  map.on('mouseleave', 'origins', () => {
-    map.getCanvas().style.cursor = '';
+  // Клік по станції призначення показує її картку, клік по будь-якому
+  // іншому місцю карти обирає найближчий доступний старт.
+  map.on('click', (event) => {
+    const hit = map.queryRenderedFeatures(event.point, { layers: ['stations'] });
+    if (hit.length) {
+      const { name, label } = hit[0].properties;
+      new maplibregl.Popup()
+        .setLngLat(event.lngLat)
+        .setHTML(`<strong>${name}</strong><span class="time">${label} на місці</span>`)
+        .addTo(map);
+      return;
+    }
+    pickNearestOrigin(event.lngLat);
   });
 
-  map.on('click', 'stations', (event) => {
-    const { name, label } = event.features[0].properties;
-    new maplibregl.Popup()
-      .setLngLat(event.lngLat)
-      .setHTML(`<strong>${name}</strong><span class="time">${label} на місці</span>`)
-      .addTo(map);
-  });
+  map.getCanvas().style.cursor = 'crosshair';
 
   state.layersReady = true;
+  if (state.network) map.getSource('network').setData(state.network);
   render();
 }
 
@@ -218,6 +247,14 @@ async function initControls() {
     fail(`Не вдалося завантажити список станцій (${error.message}).`);
     return;
   }
+
+  // Мережа — контекст, без неї застосунок працює; тому окремо й без fail().
+  loadJson(`${DATA}/network.json`)
+    .then((network) => {
+      state.network = network;
+      if (state.layersReady) map.getSource('network').setData(network);
+    })
+    .catch(() => {});
 
   // збірка ранжує origin-и за кількістю рейсів — для вибору зі списку
   // потрібен алфавіт, інакше вгорі опиняється міська S-Bahn, а не міста
@@ -247,7 +284,7 @@ async function initControls() {
   }
 
   // Нічого не рахуємо наперед: спершу людина обирає, звідки їде.
-  el('status').textContent = 'Оберіть станцію на карті або у списку.';
+  el('status').textContent = 'Клікніть по карті — візьму найближчу станцію.';
   render();
 }
 

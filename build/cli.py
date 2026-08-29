@@ -10,7 +10,8 @@ from pathlib import Path
 from build.calendar_pick import monday_service_ids
 from build.daytrip import DEPART_AFTER, RETURN_BY, day_trip_windows
 from build.gtfs_ingest import load_gtfs
-from build.origins import DEFAULT_LIMIT, pick_origins
+from build.network import network_geojson
+from build.origins import DEFAULT_LIMIT, pick_major_stations, pick_origins
 
 
 def build_all(gtfs_path: Path, out_dir: Path, limit: int = DEFAULT_LIMIT) -> None:
@@ -20,8 +21,20 @@ def build_all(gtfs_path: Path, out_dir: Path, limit: int = DEFAULT_LIMIT) -> Non
     feed = load_gtfs(gtfs_path, service_ids=service_ids)
     print(f"{feed.n_stops} зупинок, {feed.n_patterns} патернів", file=sys.stderr)
 
+    out_dir.mkdir(parents=True, exist_ok=True)
+    network = network_geojson(feed)
+    (out_dir / "network.json").write_text(json.dumps(network, separators=(",", ":")))
+    print(f"мережа: {len(network['features'])} ділянок", file=sys.stderr)
+
     reversed_feed = feed.reversed()
-    origins = pick_origins(feed, limit=limit)
+
+    # Головні вокзали — те, що видно на карті кільцями. Вони мають бути
+    # прорахованими завжди, навіть якщо за кількістю рейсів не потрапляють
+    # у топ: місто без свого Hbf на карті виглядає зламано.
+    major = pick_major_stations(feed)
+    ranked = pick_origins(feed, limit=limit)
+    origins = major + [o for o in ranked if o not in set(major)]
+    print(f"{len(major)} головних вокзалів, {len(origins)} origin-ів усього", file=sys.stderr)
 
     origins_dir = out_dir / "origins"
     origins_dir.mkdir(parents=True, exist_ok=True)
@@ -55,6 +68,7 @@ def build_all(gtfs_path: Path, out_dir: Path, limit: int = DEFAULT_LIMIT) -> Non
                 "depart_after": DEPART_AFTER,
                 "return_by": RETURN_BY,
                 "origins": origins,
+                "major": major,
                 "stations": stations,
             },
             separators=(",", ":"),
