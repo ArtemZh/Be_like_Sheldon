@@ -10,16 +10,21 @@ const DATA = `${import.meta.env.BASE_URL}data`;
 const BREAKS = [4 * 3600, 6 * 3600, 8 * 3600];
 const SEQ = ['#f6b48c', '#f08a57', '#ea5212', '#93300a'];
 const EMPTY = { type: 'FeatureCollection', features: [] };
+// Німеччина цілком: карта відкривається на весь контур, а не на точці.
+const GERMANY = [[5.87, 47.27], [15.04, 55.06]];
 
 const el = (id) => document.getElementById(id);
-const state = { index: null, windows: null, layersReady: false };
+const state = { index: null, windows: null, origin: null, layersReady: false };
 
 const map = new maplibregl.Map({
   container: 'map',
   style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-  center: [10.4, 51.1],
-  zoom: 5.2,
+  bounds: GERMANY,
+  fitBoundsOptions: { padding: 28 },
 });
+
+// у dev карта доступна з консолі — інакше шари нема чим оглянути
+if (import.meta.env.DEV) window.__map = map;
 
 async function loadJson(url) {
   const response = await fetch(url);
@@ -47,14 +52,20 @@ function currentPoints() {
 function render() {
   el('min-stay-value').textContent = formatHours(Number(el('min-stay').value));
   el('overhead-value').textContent = formatHours(Number(el('overhead').value));
-  if (!state.windows) return;
+  if (!state.layersReady) return;
+
+  renderOrigins();
+
+  if (!state.windows) {
+    map.getSource('stations').setData(EMPTY);
+    map.getSource('zones').setData(EMPTY);
+    return;
+  }
 
   const points = currentPoints();
   el('status').innerHTML = points.length
     ? `<strong>${points.length}</strong> станцій підходить`
     : 'Звідси за цей день нікуди не зʼїздиш';
-
-  if (!state.layersReady) return;
 
   map.getSource('stations').setData({
     type: 'FeatureCollection',
@@ -65,14 +76,54 @@ function render() {
     })),
   });
 
-  map.getSource('zones').setData(el('show-zones').checked ? buildZones(points, BREAKS) : EMPTY);
+  scheduleZones(points);
+}
+
+/**
+ * Зони коштують ~350 мс на країну, а слайдер шле подію на кожен крок.
+ * Кружечки оновлюються миттєво, контури — коли рух припинився.
+ */
+let zonesTimer = null;
+function scheduleZones(points) {
+  clearTimeout(zonesTimer);
+  if (!el('show-zones').checked) {
+    map.getSource('zones').setData(EMPTY);
+    return;
+  }
+  zonesTimer = setTimeout(() => {
+    map.getSource('zones').setData(buildZones(points, BREAKS));
+  }, 180);
+}
+
+/**
+ * Станції відправлення на карті — з них починається робота.
+ *
+ * Поки старт не обрано, це єдине, що є на полотні: карта відкривається
+ * порожньою Німеччиною й чекає на клік, а не рахує щось наперед.
+ */
+function renderOrigins() {
+  if (!state.index) return;
+  map.getSource('origins').setData({
+    type: 'FeatureCollection',
+    features: state.index.origins.flatMap((stopId) => {
+      const station = state.index.stations[stopId];
+      if (!station) return [];
+      return [{
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [station.lon, station.lat] },
+        properties: { id: stopId, name: station.name, chosen: stopId === state.origin },
+      }];
+    }),
+  });
 }
 
 async function selectOrigin(stopId) {
   el('status').textContent = 'Рахую…';
   try {
     const payload = await loadJson(`${DATA}/origins/${stopId}.json`);
+    state.origin = stopId;
     state.windows = payload.stations;
+    el('origin').value = stopId;
     render();
   } catch (error) {
     fail(`Не вдалося завантажити дані (${error.message}).`);
@@ -87,10 +138,10 @@ function addLayers() {
     source: 'zones',
     paint: {
       'fill-color': [
-        'step', ['get', 'value'],
+        'step', ['get', 'min'],
         SEQ[0], BREAKS[0], SEQ[1], BREAKS[1], SEQ[2], BREAKS[2], SEQ[3],
       ],
-      'fill-opacity': 0.18,
+      'fill-opacity': 0.45,
     },
   });
 
@@ -102,7 +153,7 @@ function addLayers() {
     paint: {
       'circle-radius': [
         'step', ['get', 'useful'],
-        3, BREAKS[0], 4.5, BREAKS[1], 6, BREAKS[2], 7.5,
+        2.5, BREAKS[0], 3.5, BREAKS[1], 4.5, BREAKS[2], 5.5,
       ],
       'circle-color': [
         'step', ['get', 'useful'],
@@ -112,6 +163,32 @@ function addLayers() {
       'circle-stroke-width': 1,
       'circle-stroke-color': '#ffffff',
     },
+  });
+
+  map.addSource('origins', { type: 'geojson', data: EMPTY });
+  map.addLayer({
+    id: 'origins',
+    type: 'circle',
+    source: 'origins',
+    // Вибір старту — головна дія на екрані, тож станції відправлення
+    // носять сигнальний колір: порожнє кільце, поки не обрано, залите
+    // після вибору.
+    paint: {
+      'circle-radius': ['case', ['get', 'chosen'], 9, 5],
+      'circle-color': ['case', ['get', 'chosen'], '#ea5212', '#ffffff'],
+      'circle-stroke-width': ['case', ['get', 'chosen'], 3, 2],
+      'circle-stroke-color': '#ea5212',
+    },
+  });
+
+  map.on('click', 'origins', (event) => {
+    selectOrigin(event.features[0].properties.id);
+  });
+  map.on('mouseenter', 'origins', () => {
+    map.getCanvas().style.cursor = 'pointer';
+  });
+  map.on('mouseleave', 'origins', () => {
+    map.getCanvas().style.cursor = '';
   });
 
   map.on('click', 'stations', (event) => {
@@ -145,6 +222,11 @@ async function initControls() {
   // збірка ранжує origin-и за кількістю рейсів — для вибору зі списку
   // потрібен алфавіт, інакше вгорі опиняється міська S-Bahn, а не міста
   const select = el('origin');
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '— оберіть станцію —';
+  select.append(placeholder);
+
   const labelled = state.index.origins.map((stopId) => ({
     stopId,
     name: state.index.stations[stopId]?.name ?? stopId,
@@ -157,13 +239,16 @@ async function initControls() {
     select.append(option);
   }
 
-  select.onchange = () => selectOrigin(select.value);
+  select.onchange = () => {
+    if (select.value) selectOrigin(select.value);
+  };
   for (const id of ['min-stay', 'overhead', 'show-zones']) {
     el(id).oninput = render;
   }
 
-  select.value = labelled[0].stopId;
-  await selectOrigin(labelled[0].stopId);
+  // Нічого не рахуємо наперед: спершу людина обирає, звідки їде.
+  el('status').textContent = 'Оберіть станцію на карті або у списку.';
+  render();
 }
 
 map.on('load', addLayers);

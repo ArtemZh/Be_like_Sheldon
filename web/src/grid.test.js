@@ -14,9 +14,25 @@ describe('walkPenalty', () => {
 describe('buildGrid', () => {
   const points = [{ lat: 52.5, lon: 13.4, useful: 7200 }];
 
-  it('комірка в станції отримує повний корисний час', () => {
+  it('найближча до станції комірка втрачає не більше за півкомірки ходу', () => {
     const cells = buildGrid(points, { cellKm: 2, radiusKm: 4 });
-    expect(Math.max(...cells.map((c) => c.value))).toBeCloseTo(7200, -2);
+    // растр вирівняний за глобальною сіткою, тож центр комірки не збігається
+    // зі станцією — але й не далі, ніж на діагональ півкомірки
+    const best = Math.max(...cells.map((c) => c.value));
+    expect(best).toBeLessThanOrEqual(7200);
+    expect(best).toBeGreaterThan(7200 - walkPenalty(Math.SQRT2));
+  });
+
+  it('комірки різних станцій лежать на одній сітці', () => {
+    const two = buildGrid(
+      [
+        { lat: 52.5, lon: 13.4, useful: 7200 },
+        { lat: 52.56, lon: 13.47, useful: 7200 },
+      ],
+      { cellKm: 2, radiusKm: 4 },
+    );
+    const keys = two.map((c) => `${c.i},${c.j}`);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   it('віддалені комірки отримують менше', () => {
@@ -37,5 +53,21 @@ describe('buildZones', () => {
 
   it('порожній вхід дає порожню колекцію', () => {
     expect(buildZones([], [3600]).features).toEqual([]);
+  });
+});
+
+describe('buildZones bands', () => {
+  const points = [
+    { lat: 52.5, lon: 13.4, useful: 10 * 3600 },
+    { lat: 52.6, lon: 13.5, useful: 6 * 3600 },
+  ];
+
+  it('кожна смуга має числову нижню межу для стилю', () => {
+    const zones = buildZones(points, [4 * 3600, 6 * 3600, 8 * 3600]);
+    expect(zones.features.length).toBeGreaterThan(0);
+    for (const f of zones.features) {
+      expect(Number.isFinite(f.properties.min)).toBe(true);
+      expect(f.properties.min).toBeGreaterThanOrEqual(4 * 3600);
+    }
   });
 });
