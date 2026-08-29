@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { walkPenalty, buildGrid, buildZones } from './grid.js';
+import { walkPenalty, walkReachKm, buildGrid, buildZones } from './grid.js';
 
 describe('walkPenalty', () => {
   it('нуль у самій станції', () => {
@@ -11,11 +11,26 @@ describe('walkPenalty', () => {
   });
 });
 
+describe('walkReachKm', () => {
+  it('за чотири вільні години — десять кілометрів в один бік', () => {
+    expect(walkReachKm(4 * 3600)).toBeCloseTo(10, 5);
+  });
+
+  it('без часу нікуди не дійдеш', () => {
+    expect(walkReachKm(0)).toBe(0);
+    expect(walkReachKm(-100)).toBe(0);
+  });
+
+  it('є стеля: вісім годин не перетворюються на похід', () => {
+    expect(walkReachKm(12 * 3600)).toBe(16);
+  });
+});
+
 describe('buildGrid', () => {
   const points = [{ lat: 52.5, lon: 13.4, useful: 7200 }];
 
   it('найближча до станції комірка втрачає не більше за півкомірки ходу', () => {
-    const cells = buildGrid(points, { cellKm: 2, radiusKm: 4 });
+    const cells = buildGrid(points, { cellKm: 2 });
     // растр вирівняний за глобальною сіткою, тож центр комірки не збігається
     // зі станцією — але й не далі, ніж на діагональ півкомірки
     const best = Math.max(...cells.map((c) => c.value));
@@ -29,19 +44,25 @@ describe('buildGrid', () => {
         { lat: 52.5, lon: 13.4, useful: 7200 },
         { lat: 52.56, lon: 13.47, useful: 7200 },
       ],
-      { cellKm: 2, radiusKm: 4 },
+      { cellKm: 2 },
     );
     const keys = two.map((c) => `${c.i},${c.j}`);
     expect(new Set(keys).size).toBe(keys.length);
   });
 
   it('віддалені комірки отримують менше', () => {
-    const cells = buildGrid(points, { cellKm: 2, radiusKm: 4 });
+    const cells = buildGrid(points, { cellKm: 2 });
     expect(cells.filter((c) => c.value < 7200).length).toBeGreaterThan(0);
   });
 
   it('порожній вхід дає порожню сітку', () => {
-    expect(buildGrid([], { cellKm: 2, radiusKm: 4 })).toEqual([]);
+    expect(buildGrid([], { cellKm: 2 })).toEqual([]);
+  });
+
+  it('станція з більшим запасом часу накриває більшу площу', () => {
+    const short = buildGrid([{ lat: 52.5, lon: 13.4, useful: 2 * 3600 }], { cellKm: 2 });
+    const long = buildGrid([{ lat: 52.5, lon: 13.4, useful: 6 * 3600 }], { cellKm: 2 });
+    expect(long.length).toBeGreaterThan(short.length);
   });
 });
 

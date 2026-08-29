@@ -18,9 +18,25 @@ const WALK_KMH = 5;
 const KM_PER_DEG_LAT = 111.32;
 const REFERENCE_LAT = 51; // середина Німеччини: растр лишається прямокутним
 
+/** Далі за це пішки не ходять, навіть якщо часу вистачає. */
+const MAX_WALK_KM = 16;
+
 /** Скільки секунд зʼїдає дорога пішки на distanceKm в один бік — туди й назад. */
 export function walkPenalty(distanceKm) {
   return (distanceKm / WALK_KMH) * 3600 * 2;
+}
+
+/**
+ * Наскільки далеко можна відійти від станції, маючи usefulSeconds часу.
+ *
+ *半 часу туди, половина назад: за чотири вільні години це вже десять
+ * кілометрів в один бік, а не фіксовані десять для всіх. Стеля існує, бо
+ * вісім годин дали б двадцять кілометрів пішки — це вже похід, а не
+ * прогулянка, та й сітку роздуває квадратично.
+ */
+export function walkReachKm(usefulSeconds) {
+  const oneWayHours = Math.max(0, usefulSeconds) / 2 / 3600;
+  return Math.min(MAX_WALK_KM, oneWayHours * WALK_KMH);
 }
 
 function cellSizeDegrees(cellKm) {
@@ -35,14 +51,18 @@ function cellSizeDegrees(cellKm) {
  * @param {{lat: number, lon: number, useful: number}[]} points
  * @returns {{lat: number, lon: number, value: number}[]}
  */
-export function buildGrid(points, { cellKm = 5, radiusKm = 10 } = {}) {
+export function buildGrid(points, { cellKm = 5 } = {}) {
   if (points.length === 0) return [];
 
   const { dLat, dLon } = cellSizeDegrees(cellKm);
-  const steps = Math.ceil(radiusKm / cellKm);
   const cells = new Map();
 
   for (const point of points) {
+    // Радіус свій для кожної станції: скільки часу — стільки й ніг.
+    const radiusKm = walkReachKm(point.useful);
+    if (radiusKm <= 0) continue;
+    const steps = Math.ceil(radiusKm / cellKm);
+
     const baseI = Math.round(point.lat / dLat);
     const baseJ = Math.round(point.lon / dLon);
 
@@ -78,7 +98,23 @@ export function buildGrid(points, { cellKm = 5, radiusKm = 10 } = {}) {
  *
  * @returns GeoJSON FeatureCollection з полігонами
  */
+/** Згладжування контурів за Чайкіним: сходинки сітки стають дугами. */
+function smoothBands(bands, iterations = 2) {
+  const smoothed = bands.features.map((feature) => {
+    try {
+      const result = turf.polygonSmooth(feature, { iterations });
+      const first = result.features[0];
+      return first ? { ...first, properties: feature.properties } : feature;
+    } catch {
+      // виродженому полігону згладжування не потрібне
+      return feature;
+    }
+  });
+  return turf.featureCollection(smoothed);
+}
+
 export function buildZones(points, breaks, options = {}) {
+  const { smoothing = 2 } = options;
   const cells = buildGrid(points, options);
   if (cells.length === 0) return turf.featureCollection([]);
 
@@ -100,9 +136,13 @@ export function buildZones(points, breaks, options = {}) {
     }
   }
 
-  const bands = turf.isobands(turf.featureCollection(features), [...breaks, Number.MAX_SAFE_INTEGER], {
+  const raw = turf.isobands(turf.featureCollection(features), [...breaks, Number.MAX_SAFE_INTEGER], {
     zProperty: 'value',
   });
+
+  // Marching squares дає сходинки по сітці — згладжуємо, щоб зона читалась
+  // як пляма доступності, а не як растр.
+  const bands = smoothBands(raw, smoothing);
   // isobands кладе в zProperty рядок "14400-21600"; для стилю потрібне число,
   // тому нижню межу смуги виносимо окремим полем
   bands.features = bands.features

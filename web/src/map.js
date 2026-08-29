@@ -3,7 +3,6 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { filterWindows, nearestOrigin } from './metrics.js';
 import { LANGUAGES, currentLanguage, formatHours, restoreLanguage, setLanguage, t } from './i18n.js';
-import { buildZones } from './grid.js';
 import { EXPIRED, LIVE, liveProfile, phaseAt, profileOutline, profilePath } from './timeline.js';
 import { DEPART_AFTER, RETURN_BY, RETURN_BY_NEXT_MORNING } from './daytrip.js';
 
@@ -230,35 +229,42 @@ function render() {
     })),
   });
 
-  scheduleZones(points);
+  scheduleZones();
 }
 
 /**
- * Зони коштують ~46 мс на країну, а події сиплються часто: слайдер шле їх
- * на кожен крок, анімація — щокадру.
+ * Зони будує воркер.
  *
- * Тому дві швидкості. Поза програванням контури будуються, коли рух
- * припинився. Під час програвання — не частіше ніж раз на 220 мс: у кадр
- * 16 мс перебудова не влазить, але чотири оновлення на секунду око читає
- * як плавне, бо зони і так змінюються повільно.
+ * Перебудова коштує до 280 мс — у кадр вона не влазить ні за яких налаштувань
+ * сітки, тому єдиний спосіб зберегти анімацію плавною це прибрати її з
+ * головного потоку. Тут лишається саме прохання й малювання відповіді.
+ *
+ * У польоті тримаємо не більше одного прохання: доки воркер рахує, нові
+ * стани накопичуватись не мають — важливий лише останній.
  */
 const ZONES_IDLE_DELAY = 180;
-const ZONES_PLAYBACK_INTERVAL = 220;
+const ZONES_PLAYBACK_INTERVAL = 180;
+const ZONES_QUALITY = { cellKm: 5, smoothing: 2 };
 
 let zonesTimer = null;
-let lastZonesBuiltAt = 0;
+let zonesPending = false;
+let lastZonesRequestAt = 0;
 
-function zonePoints(points) {
-  // Згасла станція вже не рахується: зона має стягуватись разом із крапками.
-  return state.clock === null ? points : points.filter((point) => !point.expired);
+function requestZones() {
+  if (zonesPending) return;
+  zonesPending = true;
+  lastZonesRequestAt = performance.now();
+  worker.postMessage({
+    type: 'zones',
+    minStay: Number(el('min-stay').value),
+    overhead: Number(el('overhead').value),
+    clock: state.clock,
+    breaks: WINDOWS[state.window].breaks,
+    quality: ZONES_QUALITY,
+  });
 }
 
-function drawZones(points) {
-  lastZonesBuiltAt = performance.now();
-  map.getSource('zones').setData(buildZones(zonePoints(points), WINDOWS[state.window].breaks));
-}
-
-function scheduleZones(points) {
+function scheduleZones() {
   clearTimeout(zonesTimer);
 
   if (!el('show-zones').checked) {
@@ -267,11 +273,11 @@ function scheduleZones(points) {
   }
 
   if (state.playing) {
-    if (performance.now() - lastZonesBuiltAt >= ZONES_PLAYBACK_INTERVAL) drawZones(points);
+    if (performance.now() - lastZonesRequestAt >= ZONES_PLAYBACK_INTERVAL) requestZones();
     return;
   }
 
-  zonesTimer = setTimeout(() => drawZones(points), ZONES_IDLE_DELAY);
+  zonesTimer = setTimeout(requestZones, ZONES_IDLE_DELAY);
 }
 
 /**
@@ -619,6 +625,14 @@ worker.onmessage = (event) => {
     return;
   }
 
+  if (message.type === 'zones') {
+    zonesPending = false;
+    if (state.layersReady && el('show-zones').checked) {
+      map.getSource('zones').setData(message.zones);
+    }
+    return;
+  }
+
   if (message.type === 'result') {
     state.result = { stops: message.stops, arrivals: message.arrivals, departures: message.departures };
     render();
@@ -756,6 +770,16 @@ async function initControls() {
   }
 
   worker.postMessage({ type: 'init', dataUrl: DATA });
+
+  // Зони будуються у воркері, тому координати мають бути й там.
+  const lat = new Float32Array(state.byIndex.length);
+  const lon = new Float32Array(state.byIndex.length);
+  state.byIndex.forEach((station, i) => {
+    if (!station) return;
+    lat[i] = station.lat;
+    lon[i] = station.lon;
+  });
+  worker.postMessage({ type: 'coords', lat, lon }, [lat.buffer, lon.buffer]);
 
   // Мережа — контекст, без неї застосунок працює; тому окремо й без fail().
   loadJson(`${DATA}/network.json`)

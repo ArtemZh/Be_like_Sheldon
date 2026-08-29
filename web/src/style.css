@@ -60,6 +60,14 @@ body {
   gap: 10px;
 }
 
+#panel::-webkit-scrollbar { width: 8px; }
+#panel::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border: 2px solid var(--surface);
+  border-radius: 4px;
+}
+#panel::-webkit-scrollbar-thumb:hover { background: var(--grey-300); }
+
 #panel h1 {
   font-size: 21px;
   font-weight: 600;
@@ -69,15 +77,16 @@ body {
 
 #intro-open {
   flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
+  width: 27px;
+  height: 27px;
   padding: 0;
   display: grid;
   place-items: center;
   color: var(--grey-500);
-  background: transparent;
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r);
+  box-shadow: var(--lift-sm);
   cursor: pointer;
 }
 
@@ -144,7 +153,8 @@ body {
 }
 
 #intro-close {
-  transition: transform 130ms ease, filter 130ms ease;
+  transition: transform 130ms ease, filter 130ms ease, box-shadow 130ms ease;
+  box-shadow: 0 8px 20px -10px rgba(234, 82, 18, 0.9);
   margin-top: 10px;
   padding: 10px 16px;
   font: 500 14px var(--sans);
@@ -164,7 +174,9 @@ body {
 }
 
 #window-switch button {
-  transition: color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  box-shadow: var(--lift-sm);
+  transition: color 140ms ease, border-color 140ms ease, box-shadow 140ms ease,
+    transform 140ms ease;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -185,10 +197,13 @@ body {
   color: var(--grey-500);
 }
 
+#window-switch button:hover { transform: translateY(-1px); }
+
 #window-switch button[aria-checked='true'] {
   color: var(--ink);
   border-color: var(--signal);
-  box-shadow: inset 0 0 0 1px var(--signal);
+  box-shadow: var(--lift-sm), inset 0 0 0 1px var(--signal);
+  transform: none;
 }
 
 #window-switch button[aria-checked='true'] small { color: var(--signal); }
@@ -216,19 +231,30 @@ output {
 /* Рамка лишається там, де на елемент натискають. */
 select {
   width: 100%;
-  padding: 9px 11px;
+  padding: 9px 30px 9px 11px;
   font: 14px var(--sans);
   color: var(--ink);
-  background: var(--paper);
+  background-color: var(--paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%2382828c' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 11px 7px;
   border: 1px solid var(--line);
   border-radius: var(--r);
+  box-shadow: var(--lift-sm);
   appearance: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
-select:focus-visible {
+select:hover { border-color: var(--grey-300); }
+
+/* Клавіатурний фокус видно на всьому, з чим можна взаємодіяти. */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
   outline: none;
   border-color: var(--signal);
-  box-shadow: 0 0 0 3px rgba(234, 82, 18, 0.16);
+  box-shadow: 0 0 0 3px rgba(234, 82, 18, 0.2);
 }
 
 /* Пройдена частина доріжки заливається — значення видно й без цифри.
@@ -302,8 +328,12 @@ select:focus-visible {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r);
+  box-shadow: var(--lift-sm);
   cursor: pointer;
+  transition: border-color 140ms ease, transform 140ms ease;
 }
+
+#status button:hover { border-color: var(--signal); transform: translateY(-1px); }
 
 /* Легенда — картка на папері, підняття тінню, не рамкою. */
 #legend {
@@ -371,7 +401,9 @@ select:focus-visible {
 
 #lang-switch button[aria-pressed='true'] {
   color: var(--signal);
+  background: var(--paper);
   border-color: var(--line);
+  box-shadow: var(--lift-sm);
 }
 
 #map { flex: 1; }
@@ -386,11 +418,23 @@ select:focus-visible {
   width: 210px;
   min-height: 74px;
   padding: 13px 15px;
-  background: var(--paper);
   border-radius: var(--r-md);
-  box-shadow: var(--lift);
   cursor: grab;
   user-select: none;
+
+  /* Те саме скло, що й у шкали часу: два вікна над картою мають бути
+     одного матеріалу. */
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(224, 224, 228, 0.9);
+  box-shadow: var(--lift), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  #hint {
+    background: rgba(255, 255, 255, 0.66);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
 }
 
 #hint.is-dragging { cursor: grabbing; }
@@ -464,17 +508,31 @@ select:focus-visible {
   z-index: 3;
   left: 340px;
   right: 0;
-  bottom: 24px;
+  bottom: 52px; /* вище за атрибуцію карти */
   display: flex;
   align-items: center;
   gap: 18px;
   width: min(680px, calc(100vw - 384px));
   margin: 0 auto;
   padding: 16px 20px 14px;
-  background: var(--paper);
   border-radius: var(--r-lg);
-  box-shadow: var(--lift);
   animation: rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+
+  /* Скляна поверхня: крізь неї видно карту, але контур і тінь тримають
+     віджет як окремий предмет, а не як пляму. */
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(224, 224, 228, 0.9);
+  box-shadow:
+    var(--lift),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  #timeline {
+    background: rgba(255, 255, 255, 0.66);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
 }
 
 #timeline[hidden] { display: none; }
@@ -524,8 +582,8 @@ select:focus-visible {
   overflow: visible;
 }
 
-#timeline-area-future { fill: var(--line-soft); }
-#timeline-area-past { fill: rgba(234, 82, 18, 0.16); }
+#timeline-area-future { fill: rgba(18, 24, 38, 0.07); }
+#timeline-area-past { fill: rgba(234, 82, 18, 0.2); }
 
 #timeline-outline {
   fill: none;
@@ -640,7 +698,7 @@ select:focus-visible {
     left: 12px;
     right: 12px;
     width: auto;
-    bottom: 12px;
+    bottom: 34px;
     gap: 12px;
     padding: 12px 14px 10px;
   }
