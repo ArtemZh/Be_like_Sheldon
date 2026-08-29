@@ -1,7 +1,8 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { filterWindows, formatHours, nearestOrigin } from './metrics.js';
+import { filterWindows, nearestOrigin } from './metrics.js';
+import { LANGUAGES, currentLanguage, formatHours, restoreLanguage, setLanguage, t } from './i18n.js';
 import { buildZones } from './grid.js';
 import { DEPART_AFTER, RETURN_BY, RETURN_BY_NEXT_MORNING } from './daytrip.js';
 
@@ -27,13 +28,11 @@ const WINDOWS = {
     returnBy: RETURN_BY,
     maxStay: 12 * 3600,
     breaks: [4 * 3600, 6 * 3600, 8 * 3600],
-    labels: ['до 4', '4 — 6', '6 — 8', '8 і більше'],
   },
   night: {
     returnBy: RETURN_BY_NEXT_MORNING,
     maxStay: 24 * 3600,
     breaks: [8 * 3600, 12 * 3600, 16 * 3600],
-    labels: ['до 8', '8 — 12', '12 — 16', '16 і більше'],
   },
 };
 const EMPTY = { type: 'FeatureCollection', features: [] };
@@ -41,6 +40,60 @@ const EMPTY = { type: 'FeatureCollection', features: [] };
 const GERMANY = [[5.87, 47.27], [15.04, 55.06]];
 
 const el = (id) => document.getElementById(id);
+
+/**
+ * Застосувати переклади до розмітки.
+ *
+ * Рядки в HTML позначені data-i18n; усе, що будується в коді, проходить
+ * через t() у місці використання. Перемикання мови просто прогонить це
+ * заново й перемалює те, що вже на екрані.
+ */
+function applyTranslations() {
+  for (const node of document.querySelectorAll('[data-i18n]')) {
+    node.textContent = t(node.dataset.i18n);
+  }
+  for (const node of document.querySelectorAll('[data-i18n-title]')) {
+    node.title = t(node.dataset.i18nTitle);
+  }
+  for (const node of document.querySelectorAll('[data-i18n-aria]')) {
+    node.setAttribute('aria-label', t(node.dataset.i18nAria));
+  }
+  for (const node of document.querySelectorAll('[data-i18n-alt]')) {
+    node.alt = t(node.dataset.i18nAlt);
+  }
+  document.title = t('app.title');
+  renderLegendLabels();
+}
+
+/** Підписи легенди читаються з порогів поточного вікна. */
+function renderLegendLabels() {
+  const { breaks } = WINDOWS[state.window];
+  const hours = (seconds) => String(seconds / 3600);
+  const labels = [
+    t('legend.under', { h: hours(breaks[0]) }),
+    t('legend.between', { a: hours(breaks[0]), b: hours(breaks[1]) }),
+    t('legend.between', { a: hours(breaks[1]), b: hours(breaks[2]) }),
+    t('legend.orMore', { h: hours(breaks[2]) }),
+  ];
+  document.querySelectorAll('#legend li .label').forEach((node, i) => {
+    node.textContent = labels[i];
+  });
+}
+
+/** Перемкнути мову інтерфейсу. */
+function selectLanguage(language) {
+  setLanguage(language);
+  for (const button of document.querySelectorAll('#lang-switch button')) {
+    button.setAttribute('aria-pressed', String(button.dataset.lang === currentLanguage()));
+  }
+  applyTranslations();
+
+  // те, що вже на екрані, теж мовою інтерфейсу
+  const placeholder = el('origin').options[0];
+  if (placeholder) placeholder.textContent = t('field.pick');
+  render();
+  if (!state.result && state.feedReady) el('status').textContent = t('status.pick');
+}
 
 /** Вираз MapLibre «поріг -> колір» для поточного вікна поїздки. */
 function stepExpression(value) {
@@ -76,7 +129,7 @@ async function loadJson(url) {
 }
 
 function fail(message) {
-  el('status').innerHTML = `${message} <button id="retry">Спробувати ще</button>`;
+  el('status').innerHTML = `${message} <button id="retry">${t('status.retry')}</button>`;
   el('retry').onclick = () => window.location.reload();
 }
 
@@ -107,10 +160,10 @@ function render() {
   const points = currentPoints();
   // Стартом може бути будь-яка станція, а в списку лише головні вокзали,
   // тому назву обраної показуємо тут — інакше вона зникає.
-  const originName = state.index.stations[state.origin]?.name ?? '';
+  const name = state.index.stations[state.origin]?.name ?? '';
   el('status').innerHTML = points.length
-    ? `<strong>${points.length}</strong> станцій з <em>${originName}</em>`
-    : `З <em>${originName}</em> за цей день нікуди не зʼїздиш`;
+    ? t('status.result', { n: points.length, name })
+    : t('status.empty', { name });
 
   map.getSource('stations').setData({
     type: 'FeatureCollection',
@@ -190,10 +243,7 @@ function selectWindow(name) {
   slider.max = String(WINDOWS[name].maxStay);
   if (Number(slider.value) > WINDOWS[name].maxStay) slider.value = slider.max;
 
-  const labels = document.querySelectorAll('#legend li .label');
-  WINDOWS[name].labels.forEach((text, i) => {
-    if (labels[i]) labels[i].textContent = text;
-  });
+  renderLegendLabels();
 
   if (state.layersReady) {
     map.setPaintProperty('stations', 'circle-color', stepExpression(['get', 'useful']));
@@ -242,24 +292,11 @@ function closeIntro() {
   rememberIntroSeen();
 }
 
-/**
- * Фото у вступному вікні — необовʼязкове.
- *
- * Якщо web/public/intro.jpg існує, показуємо його й ховаємо намальовану
- * сцену; якщо ні — лишається ілюстрація, і жодної битої картинки.
- */
+/** Якщо фото не завантажилось, прибираємо його, щоб не було битої іконки. */
 function setUpIntroImage() {
   const photo = document.querySelector('.intro-photo');
-  const art = document.querySelector('.intro-art');
-  const probe = new Image();
-  probe.onload = () => {
-    photo.hidden = false;
-    art.hidden = true;
-  };
-  probe.onerror = () => {
-    photo.remove();
-  };
-  probe.src = photo.getAttribute('src');
+  photo.hidden = false;
+  photo.onerror = () => photo.remove();
 }
 
 function setUpIntro() {
@@ -290,9 +327,13 @@ function clockTime(seconds) {
 function showHint({ name, useful, arrival, departure }) {
   const hint = el('hint');
   hint.querySelector('.hint-name').textContent = name;
-  hint.querySelector('.hint-useful').textContent = `${formatHours(useful)} на місці`;
-  hint.querySelector('.hint-times').textContent =
-    `приїзд ${clockTime(arrival)} · назад ${clockTime(departure)}`;
+  hint.querySelector('.hint-useful').textContent = t('hint.useful', {
+    time: formatHours(useful),
+  });
+  hint.querySelector('.hint-times').textContent = t('hint.times', {
+    a: clockTime(arrival),
+    d: clockTime(departure),
+  });
   hint.classList.remove('is-empty');
 }
 
@@ -360,7 +401,7 @@ function selectOrigin(stopId) {
 
   state.origin = stopId;
   el('origin').value = stopId;
-  el('status').textContent = 'Рахую…';
+  el('status').textContent = t('status.computing');
   clearHint();
   worker.postMessage({
     type: 'route',
@@ -375,12 +416,12 @@ worker.onmessage = (event) => {
 
   if (message.type === 'ready') {
     state.feedReady = true;
-    el('status').textContent = 'Клікніть по карті — візьму найближчу станцію.';
+    el('status').textContent = t('status.pick');
     return;
   }
 
   if (message.type === 'error') {
-    fail(`Не вдалося порахувати маршрути (${message.message}).`);
+    fail(t('error.routes', { message: message.message }));
     return;
   }
 
@@ -476,12 +517,13 @@ function addLayers() {
  * одразу, а шари додаються окремо, коли карта буде готова.
  */
 async function initControls() {
-  el('status').textContent = 'Завантажую розклад…';
+  selectLanguage(restoreLanguage());
+  el('status').textContent = t('status.loading');
 
   try {
     state.index = await loadJson(`${DATA}/stations.json`);
   } catch (error) {
-    fail(`Не вдалося завантажити список станцій (${error.message}).`);
+    fail(t('error.stations', { message: error.message }));
     return;
   }
 
@@ -506,7 +548,7 @@ async function initControls() {
   const select = el('origin');
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = '— оберіть станцію —';
+  placeholder.textContent = t('field.pick');
   select.append(placeholder);
 
   const labelled = (state.index.major ?? []).map((stopId) => ({
@@ -527,6 +569,10 @@ async function initControls() {
 
   for (const button of document.querySelectorAll('#window-switch button')) {
     button.onclick = () => selectWindow(button.dataset.window);
+  }
+
+  for (const button of document.querySelectorAll('#lang-switch button')) {
+    button.onclick = () => selectLanguage(button.dataset.lang);
   }
   for (const id of ['min-stay', 'overhead', 'show-zones']) {
     el(id).oninput = render;

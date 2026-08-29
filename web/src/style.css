@@ -119,13 +119,6 @@ body {
 
 .intro-photo[hidden] { display: none; }
 
-.intro-art {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin-bottom: 20px;
-  color: var(--grey-300);
-}
 
 #intro h2 {
   margin: 0 0 14px;
@@ -322,6 +315,32 @@ input[type='range']::-webkit-slider-thumb {
   height: 7px;
   border-radius: 50%;
   flex: 0 0 auto;
+}
+
+/* Перемикач мов — дрібний, унизу панелі. */
+#lang-switch {
+  display: flex;
+  gap: 4px;
+  margin-top: 26px;
+}
+
+#lang-switch button {
+  padding: 5px 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--grey-500);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+#lang-switch button:hover { color: var(--ink); }
+
+#lang-switch button[aria-pressed='true'] {
+  color: var(--signal);
+  border-color: var(--line);
 }
 
 #map { flex: 1; }

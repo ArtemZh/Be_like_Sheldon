@@ -31,14 +31,6 @@ export function filterWindows({ stops, arrivals, departures }, { minStay, overhe
   return out;
 }
 
-/** 23400 -> "6 год 30 хв" */
-export function formatHours(seconds) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.round((seconds % 3600) / 60);
-  if (minutes === 0) return `${hours} год`;
-  return `${hours} год ${minutes} хв`;
-}
-
 /**
  * Найближча до точки станція відправлення.
  *

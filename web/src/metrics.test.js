@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { usefulTime, filterWindows, formatHours, nearestOrigin } from './metrics.js';
+import { usefulTime, filterWindows, nearestOrigin } from './metrics.js';
 
 describe('usefulTime', () => {
   it('віднімає overhead від вікна перебування', () => {
@@ -31,13 +31,6 @@ describe('filterWindows', () => {
 
   it('порожній результат, коли нічого не проходить', () => {
     expect(filterWindows(result, { minStay: 12 * 3600, overhead: 3600 })).toEqual([]);
-  });
-});
-
-describe('formatHours', () => {
-  it('форматує секунди як години й хвилини', () => {
-    expect(formatHours(23400)).toBe('6 год 30 хв');
-    expect(formatHours(3600)).toBe('1 год');
   });
 });
 

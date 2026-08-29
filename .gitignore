@@ -7,3 +7,6 @@ gtfs/
 web/node_modules/
 web/dist/
 web/public/data/
+
+# оригінал фото лежить у web/public/intro.webp
+sheldons-trip-to-germany-*.webp

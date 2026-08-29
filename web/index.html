@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="uk">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Куди доїду за день</title>
+    <title>Where can I get in a day</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,8 +15,8 @@
   <body>
     <aside id="panel">
       <div class="title-row">
-        <h1>Куди доїду за день</h1>
-        <button type="button" id="intro-open" title="Навіщо це" aria-label="Навіщо це">
+        <h1 data-i18n="app.title">Where can I get in a day</h1>
+        <button type="button" id="intro-open" data-i18n-title="intro.open" data-i18n-aria="intro.open">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.3"/>
             <path d="M6 6a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6.9v.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
@@ -25,36 +25,43 @@
         </button>
       </div>
 
-      <div id="window-switch" role="radiogroup" aria-label="Вікно поїздки">
+      <div id="window-switch" role="radiogroup" data-i18n-aria="window.legend">
         <button type="button" data-window="day" aria-checked="true" role="radio">
-          День<small>пн 09:00 → 23:00</small>
+          <span data-i18n="window.day">Day</span><small data-i18n="window.day.range">Mon 09:00 → 23:00</small>
         </button>
         <button type="button" data-window="night" aria-checked="false" role="radio">
-          Доба<small>пн 09:00 → вт 09:00</small>
+          <span data-i18n="window.night">Overnight</span><small data-i18n="window.night.range">Mon 09:00 → Tue 09:00</small>
         </button>
       </div>
 
-      <label for="origin">Звідки</label>
+      <label for="origin" data-i18n="field.from">From</label>
       <select id="origin"></select>
 
-      <label for="min-stay">Мінімум на місці · <output id="min-stay-value">4 год</output></label>
+      <label for="min-stay"><span data-i18n="field.minStay">Minimum on site</span> · <output id="min-stay-value"></output></label>
       <input id="min-stay" type="range" min="0" max="43200" step="1800" value="14400" />
 
-      <label for="overhead">Кава й хотдог · <output id="overhead-value">1 год</output></label>
+      <label for="overhead"><span data-i18n="field.overhead">Coffee and a hotdog</span> · <output id="overhead-value"></output></label>
       <input id="overhead" type="range" min="0" max="7200" step="900" value="3600" />
 
-      <label class="toggle"><input id="show-zones" type="checkbox" checked /> Показувати зони</label>
+      <label class="toggle"><input id="show-zones" type="checkbox" checked /> <span data-i18n="field.zones">Show zones</span></label>
 
       <p id="status"></p>
 
       <div id="legend">
-        <h2>Корисних годин на місці</h2>
+        <h2 data-i18n="legend.title">Useful hours on site</h2>
         <ul>
-          <li><span class="dot" style="background: #e8763a"></span><span class="label">до 4</span></li>
-          <li><span class="dot" style="background: #d4500f"></span><span class="label">4 — 6</span></li>
-          <li><span class="dot" style="background: #a83a0b"></span><span class="label">6 — 8</span></li>
-          <li><span class="dot" style="background: #5e1f06"></span><span class="label">8 і більше</span></li>
+          <li><span class="dot" style="background: #e8763a"></span><span class="label"></span></li>
+          <li><span class="dot" style="background: #d4500f"></span><span class="label"></span></li>
+          <li><span class="dot" style="background: #a83a0b"></span><span class="label"></span></li>
+          <li><span class="dot" style="background: #5e1f06"></span><span class="label"></span></li>
         </ul>
+      </div>
+
+      <div id="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang="en">EN</button>
+        <button type="button" data-lang="de">DE</button>
+        <button type="button" data-lang="pl">PL</button>
+        <button type="button" data-lang="uk">UK</button>
       </div>
     </aside>
     <div id="map"></div>
@@ -62,54 +69,20 @@
     <!-- Вступне вікно: показується один раз, далі відкривається з панелі. -->
     <div id="intro-backdrop" hidden></div>
     <div id="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title" hidden>
-      <!-- Якщо покласти web/public/intro.jpg, вікно покаже його замість
-           намальованої сцени. Файл у репозиторій не входить. -->
       <img
         class="intro-photo"
-        src="intro.jpg"
-        alt="Купе поїзда: пасажир із блокнотом біля вікна, за вікном перонний візок"
+        src="intro.webp"
+        data-i18n-alt="photo.alt" alt=""
         hidden
       />
-      <svg class="intro-art" viewBox="0 0 420 150" aria-hidden="true">
-        <!-- вікно вагона -->
-        <rect x="14" y="14" width="392" height="122" rx="14" fill="none" stroke="currentColor" stroke-width="1.4"/>
-        <line x1="14" y1="112" x2="406" y2="112" stroke="currentColor" stroke-width="1"/>
-        <!-- перон за вікном -->
-        <line x1="40" y1="96" x2="380" y2="96" stroke="currentColor" stroke-width="1"/>
-        <!-- ліхтар -->
-        <line x1="72" y1="96" x2="72" y2="44" stroke="currentColor" stroke-width="1"/>
-        <path d="M64 44h16l-4-10h-8z" fill="none" stroke="currentColor" stroke-width="1"/>
-        <!-- візок із випічкою -->
-        <rect x="150" y="58" width="104" height="30" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
-        <path d="M150 58h104l-10-12h-84z" fill="none" stroke="currentColor" stroke-width="1.2"/>
-        <line x1="176" y1="88" x2="176" y2="96" stroke="currentColor" stroke-width="1"/>
-        <line x1="228" y1="88" x2="228" y2="96" stroke="currentColor" stroke-width="1"/>
-        <circle cx="176" cy="99" r="4" fill="none" stroke="currentColor" stroke-width="1"/>
-        <circle cx="228" cy="99" r="4" fill="none" stroke="currentColor" stroke-width="1"/>
-        <!-- потяг удалині -->
-        <path d="M300 96v-14h44v14" fill="none" stroke="currentColor" stroke-width="1"/>
-        <line x1="308" y1="82" x2="308" y2="96" stroke="currentColor" stroke-width="1"/>
-        <line x1="336" y1="82" x2="336" y2="96" stroke="currentColor" stroke-width="1"/>
-        <!-- склянка кави на столику, єдина сигнальна деталь -->
-        <path d="M52 128v-14h18v14z" fill="none" stroke="var(--signal)" stroke-width="1.4"/>
-        <path d="M70 118h6a4 4 0 0 1 0 8h-6" fill="none" stroke="var(--signal)" stroke-width="1.4"/>
-        <path d="M56 108c0-4 4-4 4-8M64 108c0-4 4-4 4-8" fill="none" stroke="var(--signal)" stroke-width="1"/>
-      </svg>
 
-      <h2 id="intro-title">Понеділок можна не працювати</h2>
+      <h2 id="intro-title" data-i18n="intro.title">You don’t have to work on Monday</h2>
 
-      <p>В епоху ШІ код зʼявляється швидше, ніж ми встигаємо його читати.
-      Ревʼю не наздоганяє генерацію, і вигоряння перестає бути абстракцією —
-      воно просто стоїть у розкладі.</p>
+      <p data-i18n="intro.p1"></p>
+      <p data-i18n="intro.p2"></p>
+      <p data-i18n="intro.p3"></p>
 
-      <p>Якщо ви втомились, зробіть як Шелдон Купер: у понеділок замість
-      роботи сядьте в поїзд і їдьте в інше місто. Прогулянка, чужий вокзал,
-      кава з хотдогом, блокнот біля вікна.</p>
-
-      <p>Клікніть на карті там, де ви зараз. Головне — повернутись увечері
-      додому.</p>
-
-      <button type="button" id="intro-close">Обрати місто</button>
+      <button type="button" id="intro-close" data-i18n="intro.close">Pick a city</button>
     </div>
 
 
@@ -121,7 +94,7 @@
       <p class="hint-name"></p>
       <p class="hint-useful"></p>
       <p class="hint-times"></p>
-      <p class="hint-placeholder">Наведіть на станцію</p>
+      <p class="hint-placeholder" data-i18n="hint.placeholder">Hover a station</p>
     </div>
     <script type="module" src="/src/map.js"></script>
   </body>
