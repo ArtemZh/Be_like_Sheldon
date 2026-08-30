@@ -1,6 +1,0 @@
-pyproject.toml
-train_daytrip.egg-info/PKG-INFO
-train_daytrip.egg-info/SOURCES.txt
-train_daytrip.egg-info/dependency_links.txt
-train_daytrip.egg-info/requires.txt
-train_daytrip.egg-info/top_level.txt
