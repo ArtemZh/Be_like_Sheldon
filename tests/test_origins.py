@@ -52,3 +52,19 @@ def test_major_skips_nameless_hauptbahnhof(tmp_path):
     majors = pick_major_stations(feed, limit=5)
     names = [str(feed.stop_names[feed.stop_index[s]]) for s in majors]
     assert names == ["Xanten Hbf"]
+
+
+def test_capitals_go_first_even_when_quiet(gtfs_zip):
+    feed = load_gtfs(gtfs_zip)
+    # Ceestadt обслуговує менше рейсів за Aville, але як «обласний центр»
+    # має бути на карті першим
+    majors = pick_major_stations(feed, limit=2, capitals=("ceestadt",))
+    names = [str(feed.stop_names[feed.stop_index[s]]) for s in majors]
+    assert names[0] == "Ceestadt Hbf"
+    assert len(names) == 2
+
+
+def test_prefers_the_plain_main_station_name(gtfs_zip_platforms):
+    feed = load_gtfs(gtfs_zip_platforms)
+    majors = pick_major_stations(feed, limit=5)
+    assert all("Hbf" in str(feed.stop_names[feed.stop_index[s]]) for s in majors)

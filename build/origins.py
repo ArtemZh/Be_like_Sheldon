@@ -15,8 +15,35 @@ def stop_trip_counts(feed: Feed) -> dict[int, int]:
     return counts
 
 
-MAJOR_LIMIT = 15
+MAJOR_LIMIT = 24
 MAIN_STATION_MARKERS = ("hbf", "hauptbahnhof")
+
+# Столиці земель — це і є «обласні центри» Німеччини. Їх ставимо на карту
+# завжди: за самим лише трафіком у регіональному фіді половина з них не
+# проходить (Кіль — 116 рейсів проти 7938 у берлінського Осткройца), і карта
+# лишалась би без Штутгарта, зате з Нойсом.
+CAPITALS = (
+    "berlin",
+    "hamburg",
+    "münchen",
+    "köln",
+    "frankfurt",
+    "stuttgart",
+    "düsseldorf",
+    "hannover",
+    "bremen",
+    "dresden",
+    "leipzig",
+    "nürnberg",
+    "mainz",
+    "wiesbaden",
+    "saarbrücken",
+    "kiel",
+    "magdeburg",
+    "erfurt",
+    "schwerin",
+    "potsdam",
+)
 
 
 def _city_of(name: str) -> str:
@@ -27,33 +54,60 @@ def _city_of(name: str) -> str:
     return name.replace(",", " ").split()[0].casefold() if name.strip() else ""
 
 
-def pick_major_stations(feed: Feed, limit: int = MAJOR_LIMIT) -> list[str]:
-    """Головні вокзали — по одному на місто, від найзавантаженішого.
+def _best_stops_by_city(feed: Feed, counts: dict[int, int]) -> dict[str, tuple[int, int]]:
+    """Для кожного міста: найзавантаженіший головний вокзал, інакше — станція.
 
-    Це не те саме, що станції відправлення: тих сотні, і половина з них —
-    міські платформи S-Bahn. На карті ж потрібні впізнавані точки, тому
-    беремо лише те, що зветься Hbf або Hauptbahnhof.
+    У DELFI головний вокзал не завжди найзавантаженіший: у Берліні попереду
+    Осткройц, у Мюнхені — Ост. Тому спершу шукаємо Hbf, а «просто найбільша
+    станція» лишається запасним варіантом для міст без нього.
     """
-    counts = stop_trip_counts(feed)
-    candidates = []
+    main: dict[str, tuple[int, int]] = {}
+    any_stop: dict[str, tuple[int, int]] = {}
     for i, trips in counts.items():
         name = str(feed.stop_names[i])
-        if any(marker in name.casefold() for marker in MAIN_STATION_MARKERS):
-            candidates.append((trips, name, i))
-    candidates.sort(key=lambda c: (-c[0], c[1]))
-
-    chosen: list[str] = []
-    seen_cities: set[str] = set()
-    for _, name, i in candidates:
         city = _city_of(name)
-        # у фіді трапляється назва просто 'Hauptbahnhof', без міста —
-        # на карті така точка нічого не каже
         if not city or city in MAIN_STATION_MARKERS:
             continue
-        if city in seen_cities:
-            continue
-        seen_cities.add(city)
-        chosen.append(str(feed.stop_ids[i]))
+        is_main = any(marker in name.casefold() for marker in MAIN_STATION_MARKERS)
+        if is_main:
+            # серед головних вокзалів міста беремо з найкоротшою назвою:
+            # 'Frankfurt (Main) Hauptbahnhof' замість того самого з 'tief',
+            # 'Hamburg Hbf' замість 'Hamburg Hbf (S-Bahn)'
+            if city not in main or len(name) < len(str(feed.stop_names[main[city][1]])):
+                main[city] = (trips, i)
+        elif trips > any_stop.get(city, (-1, -1))[0]:
+            any_stop[city] = (trips, i)
+    return {city: main.get(city) or any_stop[city] for city in {**any_stop, **main}}
+
+
+def pick_major_stations(
+    feed: Feed, limit: int = MAJOR_LIMIT, capitals: tuple[str, ...] = CAPITALS
+) -> list[str]:
+    """Станції відправлення, позначені на карті.
+
+    Спершу обласні центри — усі, які є у фіді. Далі добираємо найбільші
+    міста, поки не набереться `limit`. По одному вокзалу на місто: точок на
+    карті мало, і два кружечки на один Берлін нічого не додають.
+    """
+    best = _best_stops_by_city(feed, stop_trip_counts(feed))
+
+    chosen: list[str] = []
+    seen: set[str] = set()
+    for city in capitals:
+        if city in best and len(chosen) < limit:
+            seen.add(city)
+            chosen.append(str(feed.stop_ids[best[city][1]]))
+
+    rest = sorted(
+        ((trips, city, i) for city, (trips, i) in best.items() if city not in seen),
+        key=lambda c: (-c[0], c[1]),
+    )
+    for trips, city, i in rest:
         if len(chosen) == limit:
             break
+        name = str(feed.stop_names[i])
+        # добірка поза столицями — лише впізнавані головні вокзали
+        if not any(marker in name.casefold() for marker in MAIN_STATION_MARKERS):
+            continue
+        chosen.append(str(feed.stop_ids[i]))
     return chosen

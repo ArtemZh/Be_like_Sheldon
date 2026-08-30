@@ -19,6 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Дані розкладу закомічені (web/public/data), тому CI нічого не качає
+      # і не збирає — лише перевіряє код і будує сайт.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e '.[dev]'
+      - run: python -m pytest -q
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

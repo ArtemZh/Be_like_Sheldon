@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from functools import cached_property
 from pathlib import Path
 
@@ -32,6 +32,10 @@ class Feed:
     transfer_from: np.ndarray
     transfer_to: np.ndarray
     transfer_time: np.ndarray
+    # Назва маршруту (RE 5, S 3) для кожного патерна. Роутингу не потрібна —
+    # тільки щоб показати людині, що це за потяг. Порожній масив означає
+    # «фід без назв»: старі збірки й фікстури лишаються валідними.
+    pattern_routes: np.ndarray = field(default_factory=lambda: np.array([], dtype="<U1"))
 
     @property
     def n_stops(self) -> int:

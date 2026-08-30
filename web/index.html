@@ -50,21 +50,42 @@
       <div id="legend">
         <h2 data-i18n="legend.title">Useful hours on site</h2>
         <ul>
-          <li><span class="dot" style="background: #e8763a"></span><span class="label"></span></li>
-          <li><span class="dot" style="background: #d4500f"></span><span class="label"></span></li>
-          <li><span class="dot" style="background: #a83a0b"></span><span class="label"></span></li>
-          <li><span class="dot" style="background: #5e1f06"></span><span class="label"></span></li>
+          <li><span class="dot"></span><span class="label"></span></li>
+          <li><span class="dot"></span><span class="label"></span></li>
+          <li><span class="dot"></span><span class="label"></span></li>
+          <li><span class="dot"></span><span class="label"></span></li>
         </ul>
       </div>
 
+    </aside>
+    <div id="map"></div>
+
+    <!-- Режим карти. Три різні застосунки на одній карті, тому перемикач
+         живе окремим елементом, а не всередині панелі одного з них. -->
+    <div id="mode-switch" role="radiogroup" data-i18n-aria="mode.group">
+      <button type="button" data-mode="day" role="radio" aria-checked="true" data-i18n="mode.day">Куди доїду</button>
+      <button type="button" data-mode="sheldon" role="radio" aria-checked="false" data-i18n="mode.sheldon">Маршрут Шелдона</button>
+      <button type="button" data-mode="screen" role="radio" aria-checked="false" data-i18n="mode.screen">Скрінсейвер</button>
+    </div>
+
+    <!-- Мова й тема — налаштування самого сайту, не режиму. -->
+    <div id="switches">
       <div id="lang-switch" role="group" aria-label="Language">
         <button type="button" data-lang="en">EN</button>
         <button type="button" data-lang="de">DE</button>
         <button type="button" data-lang="pl">PL</button>
         <button type="button" data-lang="uk">UK</button>
       </div>
-    </aside>
-    <div id="map"></div>
+      <div id="map-switch" role="group" data-i18n-aria="map.group">
+        <button type="button" data-map="own" data-i18n="map.own">Своя</button>
+        <button type="button" data-map="osm" data-i18n="map.osm">OSM</button>
+      </div>
+      <button type="button" id="sources-open" data-i18n="sources.open">Джерела</button>
+      <div id="theme-switch" role="group" data-i18n-aria="theme.group">
+        <button type="button" data-theme="light" data-i18n-title="theme.light">☀</button>
+        <button type="button" data-theme="dark" data-i18n-title="theme.dark">☾</button>
+      </div>
+    </div>
 
     <!-- Шкала часу: один прохід показує обидва напрямки — станції
          зʼявляються, коли туди можна доїхати, і гаснуть, коли останній
@@ -120,20 +141,117 @@
       <p data-i18n="intro.p2"></p>
       <p data-i18n="intro.p3"></p>
 
-      <button type="button" id="intro-close" data-i18n="intro.close">Pick a city</button>
+      <p class="intro-lead" data-i18n="intro.pick">З чого почнемо?</p>
+      <div id="intro-modes">
+        <button type="button" data-mode="day"><b data-i18n="mode.day">Куди доїду</b><small data-i18n="intro.day">карта одноденних поїздок</small></button>
+        <button type="button" data-mode="sheldon"><b data-i18n="mode.sheldon">Маршрут Шелдона</b><small data-i18n="intro.sheldon">історія однієї поїздки</small></button>
+        <button type="button" data-mode="screen"><b data-i18n="mode.screen">Скрінсейвер</b><small data-i18n="intro.screen">розклад у русі, без кліків</small></button>
+      </div>
+      <button type="button" id="intro-tour" data-i18n="intro.tour">Показати екскурсію</button>
     </div>
 
 
     <!-- Підказка живе окремим вікном, а не попапом на марці: попап
          перехоплював би клік, а клік по станції задає новий старт.
-         Вікно не зникає — коли нема чого показати, воно просто порожнє,
-         щоб не смикалось на кожному русі миші. Його можна перетягнути. -->
+         Вікно не зникає й не порожніє: без наведення в ньому стоїть той
+         самий макет із XX замість цифр, а наведення прокручує символи
+         до справжніх значень, як на механічному табло. Його можна перетягнути. -->
     <div id="hint" class="is-empty">
-      <p class="hint-name"></p>
+      <p class="hint-name"><span class="flap"></span><span class="flap"></span></p>
       <p class="hint-useful"></p>
       <p class="hint-times"></p>
-      <p class="hint-placeholder" data-i18n="hint.placeholder">Hover a station</p>
     </div>
+    <!-- Скрінсейвер: неінтерактивне табло. Ліворуч дашборди, у центрі
+         великий годинник. -->
+    <aside id="screen" hidden>
+      <div id="screen-tools">
+        <button type="button" id="screen-hide-settings" data-i18n="screen.hideSettings">Сховати налаштування</button>
+        <button type="button" id="screen-hide-panel" data-i18n="screen.hidePanel">Сховати панель</button>
+      </div>
+
+      <h1 data-i18n="screen.title">Понеділок у русі</h1>
+      <p id="screen-lead" data-i18n="screen.lead"></p>
+
+      <div id="screen-settings">
+      <h2 data-i18n="screen.settings">Плин часу</h2>
+      <div id="screen-speed" role="radiogroup">
+        <button type="button" data-speed="real" role="radio" aria-checked="true" data-i18n="screen.real">Реальний час</button>
+        <button type="button" data-speed="fast" role="radio" aria-checked="false" data-i18n="screen.fast">Прискорено</button>
+      </div>
+      <div id="screen-scope" role="radiogroup" data-i18n-aria="screen.scopeGroup">
+        <button type="button" data-scope="all" role="radio" aria-checked="true" data-i18n="screen.scopeAll">Уся карта</button>
+        <button type="button" data-scope="view" role="radio" aria-checked="false" data-i18n="screen.scopeView">Видима частина</button>
+      </div>
+
+      <label for="screen-duration"><span data-i18n="screen.duration">Весь день за</span> · <output id="screen-duration-value"></output></label>
+      <input id="screen-duration" type="range" min="10" max="60" step="5" value="20" disabled />
+      </div>
+
+      <div class="screen-figures">
+        <div><span id="screen-standing">--</span><small data-i18n="screen.standing">стоять</small></div>
+        <div><span id="screen-leaving">--</span><small data-i18n="screen.leaving">рушають за 30 с</small></div>
+        <div><span id="screen-left">--</span><small data-i18n="screen.left">щойно поїхали</small></div>
+      </div>
+
+      <h2 data-i18n="screen.pulse">Пульс дня</h2>
+      <div id="screen-hours"></div>
+      <p id="screen-peak"></p>
+
+      <h2 data-i18n="screen.today">Сьогодні від півночі</h2>
+      <dl id="screen-today">
+        <div><dt data-i18n="screen.km">поїздо-кілометрів</dt><dd id="screen-km">--</dd></div>
+        <div><dt data-i18n="screen.rate">рушає потяг раз на</dt><dd id="screen-rate">--</dd></div>
+      </dl>
+
+      <h2 data-i18n="screen.departures">Ось-ось відправляться</h2>
+      <ul id="screen-ticker"></ul>
+
+    </aside>
+
+    <!-- Звідки взяті дані. Те саме затемнення, що й у вікна привітання. -->
+    <div id="sources" role="dialog" aria-modal="true" aria-labelledby="sources-title" hidden>
+      <h2 id="sources-title" data-i18n="sources.title">Звідки тут дані</h2>
+      <p data-i18n="sources.lead"></p>
+      <ul id="sources-list"></ul>
+      <h3 data-i18n="sources.facts">Факти — статті англомовної Вікіпедії</h3>
+      <p id="sources-wiki"></p>
+      <p id="sources-photos" data-i18n="sources.photos"></p>
+      <button type="button" id="sources-close" aria-label="×">×</button>
+    </div>
+
+    <!-- Екскурсія: затемнення з «вирізаною» рамкою і картка з поясненням. -->
+    <div id="tour" hidden>
+      <div id="tour-spot"></div>
+      <div id="tour-card">
+        <span id="tour-step"></span>
+        <h2 id="tour-title"></h2>
+        <p id="tour-text"></p>
+        <div id="tour-nav">
+          <button type="button" id="tour-prev" data-i18n="tour.prev">Назад</button>
+          <button type="button" id="tour-next" data-i18n="tour.next">Далі</button>
+          <button type="button" id="tour-skip" data-i18n="tour.skip">Пропустити</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Повернути сховану панель. Живе поза нею, інакше зникло б разом. -->
+    <button type="button" id="screen-show-panel" hidden>
+      <span aria-hidden="true">›</span><span data-i18n="screen.showPanel">Показати панель</span>
+    </button>
+
+    <!-- Годинник скрінсейвера: те саме скло, що й підказка станції. -->
+    <div id="screen-clock" hidden><span id="screen-time"></span></div>
+
+    <!-- Маршрут Шелдона: одна довга сторінка. Три картки маршрутів угорі
+         перемикають те, що показує карта; далі — сама розповідь. -->
+    <aside id="story" hidden>
+      <img id="story-photo" src="sheldon.webp" alt="" hidden />
+      <h1 id="story-heading"></h1>
+      <p id="story-lead"></p>
+      <div id="story-routes"></div>
+      <div id="story-sections"></div>
+    </aside>
+
     <script type="module" src="/src/map.js"></script>
   </body>
 </html>

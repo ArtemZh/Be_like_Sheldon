@@ -57,6 +57,13 @@ def load_gtfs(path: Path, days: list[tuple[set[str], int]] | None = None) -> Fee
     stop_ids, index, names, lats, lons = _collapse_to_stations(stops)
 
     rail_routes = {r["route_id"] for r in routes if r["route_type"] in RAIL_ROUTE_TYPES}
+    # Назва лінії: коротка, якщо є (RE 5), інакше довга. Далі вона доїде до
+    # фронтенду тільки заради підпису «що це за потяг».
+    route_names = {
+        r["route_id"]: (r.get("route_short_name") or r.get("route_long_name") or "").strip()
+        for r in routes
+    }
+    route_of_trip = {t["trip_id"]: route_names.get(t["route_id"], "") for t in trips}
     schedule = days if days is not None else [(None, 0)]
     offsets_of_trip: dict[str, list[int]] = {}
     for trip in trips:
@@ -73,9 +80,11 @@ def load_gtfs(path: Path, days: list[tuple[set[str], int]] | None = None) -> Fee
             by_trip[st["trip_id"]].append(st)
 
     patterns: dict[tuple[int, ...], list[tuple[list[int], list[int]]]] = defaultdict(list)
+    pattern_names: dict[tuple[int, ...], Counter] = defaultdict(Counter)
     for trip_id, rows in by_trip.items():
         rows.sort(key=lambda r: int(r["stop_sequence"]))
         key = tuple(index[r["stop_id"]] for r in rows)
+        pattern_names[key][route_of_trip.get(trip_id, "")] += 1
         base_arr = [parse_time(r["arrival_time"]) for r in rows]
         base_dep = [parse_time(r["departure_time"]) for r in rows]
         for offset in offsets_of_trip[trip_id]:
@@ -89,7 +98,10 @@ def load_gtfs(path: Path, days: list[tuple[set[str], int]] | None = None) -> Fee
     trip_arr: list[int] = []
     trip_dep: list[int] = []
 
+    routes_of_pattern: list[str] = []
     for key in sorted(patterns):
+        # у патерна можуть бути рейси різних ліній — беремо найчастішу
+        routes_of_pattern.append(pattern_names[key].most_common(1)[0][0])
         pattern_stops.extend(key)
         pattern_ptr.append(len(pattern_stops))
         runs = sorted(patterns[key], key=lambda ad: ad[1][0])
@@ -112,6 +124,7 @@ def load_gtfs(path: Path, days: list[tuple[set[str], int]] | None = None) -> Fee
         transfer_from=np.array([], dtype=np.int32),
         transfer_to=np.array([], dtype=np.int32),
         transfer_time=np.array([], dtype=np.int32),
+        pattern_routes=np.array(routes_of_pattern),
     )
 
 def _collapse_to_stations(

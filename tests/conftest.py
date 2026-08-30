@@ -93,3 +93,30 @@ def gtfs_zip_platforms(tmp_path: Path) -> Path:
         z.writestr("stop_times.txt", PLATFORM_STOP_TIMES)
         z.writestr("calendar.txt", CALENDAR)
     return path
+
+
+EXPRESS_TRIPS = """route_id,service_id,trip_id
+r_line1,mon,t_ABC
+r_line2,mon,t_AC_express
+"""
+
+EXPRESS_STOP_TIMES = """trip_id,arrival_time,departure_time,stop_id,stop_sequence
+t_ABC,09:00:00,09:00:00,A,1
+t_ABC,09:40:00,09:40:00,B,2
+t_ABC,10:20:00,10:20:00,C,3
+t_AC_express,11:00:00,11:00:00,A,1
+t_AC_express,11:50:00,11:50:00,C,2
+"""
+
+
+@pytest.fixture
+def gtfs_zip_express(tmp_path: Path) -> Path:
+    """Місцевий A-B-C і експрес A-C повз B — той самий шлях двома лініями."""
+    path = tmp_path / "express.zip"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("stops.txt", STOPS)
+        z.writestr("routes.txt", ROUTES)
+        z.writestr("trips.txt", EXPRESS_TRIPS)
+        z.writestr("stop_times.txt", EXPRESS_STOP_TIMES)
+        z.writestr("calendar.txt", CALENDAR)
+    return path

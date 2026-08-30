@@ -12,11 +12,21 @@ import { dayTripWindows } from './daytrip.js';
 import { buildZones } from './grid.js';
 import { filterWindows } from './metrics.js';
 import { phaseAt, LIVE } from './timeline.js';
+import {
+  buildKilometres,
+  buildLiveIndex,
+  departuresByHour,
+  peakMinute,
+  randomTrain,
+  statesAt,
+} from './live.js';
 
 let feed = null;
 let reversed = null;
 let lastResult = null;
 let coords = null; // { lat: Float32Array, lon: Float32Array } за індексом станції
+let live = null; // індекс «хвилина -> зайняті станції» для скрінсейвера
+let kilometres = null; // накопичені поїздо-кілометри по хвилинах доби
 
 /** Станції, придатні для зони на заданий момент часу. */
 function zonePoints({ minStay, overhead, clock }) {
@@ -48,8 +58,91 @@ self.onmessage = async (event) => {
     return;
   }
 
+  // Скрінсейвер питає стан мережі щокадру, тому індекс будуємо один раз і
+  // ліниво: денному режиму він не потрібен взагалі.
+  if (message.type === 'live') {
+    if (!feed) return;
+    if (!live) {
+      live = buildLiveIndex(feed);
+      // кілометри рахуємо, лише коли вже приїхали координати станцій
+      if (coords) kilometres = buildKilometres(feed, coords);
+      self.postMessage({
+        type: 'live-ready',
+        hours: departuresByHour(live),
+        peak: peakMinute(live),
+      });
+    }
+
+    // Три стани: стоїть, рушає за півхвилини, щойно поїхав. Пласкі масиви,
+    // бо це йде в головний потік щокадру.
+    const { standing, leaving, arrived } = statesAt(live, message.time);
+    const size = standing.size + leaving.length + arrived.length;
+    const stops = new Uint16Array(size);
+    const phase = new Uint8Array(size);
+    const value = new Float32Array(size); // потягів для «стоїть», вік для решти
+    let i = 0;
+    for (const [stop, trains] of standing) {
+      stops[i] = stop;
+      phase[i] = 1;
+      value[i] = Math.min(trains, 255);
+      i += 1;
+    }
+    for (const { stop, age } of leaving) {
+      stops[i] = stop;
+      phase[i] = 2;
+      value[i] = age;
+      i += 1;
+    }
+    for (const { stop, age } of arrived) {
+      stops[i] = stop;
+      phase[i] = 0;
+      value[i] = age;
+      i += 1;
+    }
+
+    self.postMessage(
+      {
+        type: 'live',
+        time: message.time,
+        stops,
+        phase,
+        value,
+        counts: {
+          standing: standing.size,
+          leaving: leaving.length,
+          arrived: arrived.length,
+          // скільки країна проїхала від початку доби і як часто зараз
+          // рушають потяги
+          km: kilometres ? kilometres[Math.floor(message.time / 60)] : null,
+          departuresThisMinute: live.departures[Math.floor((message.time % 86400) / 60)],
+        },
+      },
+      [stops.buffer, phase.buffer, value.buffer],
+    );
+    return;
+  }
+
+  // Один випадковий потяг, що зараз у дорозі: для віджета «зараз їде».
+  if (message.type === 'train') {
+    if (!feed) return;
+    // bounds — [[захід, південь], [схід, північ]]; якщо їх немає, шукаємо
+    // по всій країні
+    const box = message.bounds;
+    const inside =
+      box && coords
+        ? (stop) =>
+            coords.lon[stop] >= box[0][0] &&
+            coords.lon[stop] <= box[1][0] &&
+            coords.lat[stop] >= box[0][1] &&
+            coords.lat[stop] <= box[1][1]
+        : null;
+    const train = randomTrain(feed, message.time, { inside });
+    self.postMessage({ type: 'train', time: message.time, train });
+    return;
+  }
+
   if (message.type === 'coords') {
-    coords = { lat: message.lat, lon: message.lon };
+    coords = { lat: message.lat, lon: message.lon, german: message.german };
     return;
   }
 

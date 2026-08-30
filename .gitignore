@@ -6,10 +6,20 @@ build/cache/
 gtfs/
 web/node_modules/
 web/dist/
-web/public/data/
 
-# оригінал фото лежить у web/public/intro.webp
-sheldons-trip-to-germany-*.webp
+# Дані розкладу лежать у репозиторії: зібрані один раз і закомічені, щоб
+# сайт і клон працювали без Python і без походу на gtfs.de. Оновлюються
+# командою з README, коли фід протухає.
+
+# Кадри з серіалу в репозиторій не йдуть: права на них у студії. Локально
+# вони лежать поруч і підхоплюються, у публічній збірці вікна просто
+# обходяться без картинок.
+web/public/intro.webp
+web/public/sheldon.webp
+photo-*.webp
+photo-*.png
+
+.DS_Store
 
 # артефакт editable-встановлення
 *.egg-info/

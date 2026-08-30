@@ -30,5 +30,20 @@ def test_writes_network_geojson(gtfs_zip, tmp_path):
     build_all(gtfs_zip, tmp_path)
     network = json.loads((tmp_path / "network.json").read_text())
     assert network["type"] == "FeatureCollection"
-    # A-B і B-C; A-D довша за 100 км і відкидається як експресна
+    # A-B і B-C; A-D довша за поріг і на карту не йде
     assert len(network["features"]) == 2
+
+
+def test_writes_story_paths_module(gtfs_zip, tmp_path):
+    out = tmp_path / "web" / "src"
+    out.mkdir(parents=True)
+    build_all(gtfs_zip, tmp_path, story_paths=out / "story-paths.js")
+    module = (out / "story-paths.js").read_text()
+    assert "STORY_STOPS" in module
+    assert "loop" in module
+
+
+def test_skips_story_paths_when_target_missing(gtfs_zip, tmp_path):
+    # у чужому дереві каталогу web/src немає — збірка не має падати
+    build_all(gtfs_zip, tmp_path, story_paths=tmp_path / "nowhere" / "story-paths.js")
+    assert (tmp_path / "stations.json").exists()

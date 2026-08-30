@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { LANGUAGES, format, formatHours, setLanguage, t } from './i18n.js';
+import { STRINGS } from './strings.js';
 
 beforeEach(() => setLanguage('en'));
 
@@ -49,17 +50,28 @@ describe('formatHours', () => {
 });
 
 describe('повнота словників', () => {
-  it('усі мови мають однаковий набір ключів', async () => {
-    const source = await import('node:fs').then((fs) => fs.readFileSync('src/i18n.js', 'utf8'));
-    const keysOf = (lang) => {
-      const block = source.slice(source.indexOf(`  ${lang}: {`));
-      const body = block.slice(0, block.indexOf('\n  },'));
-      return new Set([...body.matchAll(/^    '([\w.]+)':/gm)].map((m) => m[1]));
-    };
-    const english = keysOf('en');
-    expect(english.size).toBeGreaterThan(20);
-    for (const lang of LANGUAGES.filter((l) => l !== 'en')) {
-      expect([...english].filter((k) => !keysOf(lang).has(k))).toEqual([]);
+  it('у кожного ключа є всі чотири мови', () => {
+    const keys = Object.keys(STRINGS);
+    expect(keys.length).toBeGreaterThan(80);
+    for (const key of keys) {
+      for (const lang of LANGUAGES) {
+        expect(typeof STRINGS[key][lang]).toBe('string');
+        expect(STRINGS[key][lang].length).toBeGreaterThan(0);
+      }
     }
+  });
+
+  it('плейсхолдери однакові в усіх мовах', () => {
+    const slots = (text) => [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+    for (const [key, entry] of Object.entries(STRINGS)) {
+      const expected = slots(entry.en);
+      for (const lang of LANGUAGES) {
+        expect({ key, slots: slots(entry[lang]) }).toEqual({ key, slots: expected });
+      }
+    }
+  });
+
+  it('невідомий ключ повертає сам себе, а не порожнечу', () => {
+    expect(t('немає.такого')).toBe('немає.такого');
   });
 });

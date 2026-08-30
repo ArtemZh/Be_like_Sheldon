@@ -15,12 +15,25 @@ from pathlib import Path
 from build.binary_feed import write_binary_feed
 from build.calendar_pick import monday_service_days
 from build.daytrip import DEPART_AFTER, RETURN_BY
+from build.germany import load_states, state_of
 from build.gtfs_ingest import load_gtfs
 from build.network import network_geojson
-from build.origins import pick_major_stations
+from build.origins import MAJOR_LIMIT, pick_major_stations
+from build.story_paths import write_module as write_story_paths
 
 
-def build_all(gtfs_path: Path, out_dir: Path, major_limit: int = 15) -> None:
+# Лінії сюжетного режиму — не дані відповіді, а частина фронтенду, тому
+# лежать модулем у web/src. Але будуються з того самого фіду, і якщо фід
+# перезібрати без них, вони тихо розійдуться з мережею на карті.
+STORY_PATHS = Path("web/src/story-paths.js")
+
+
+def build_all(
+    gtfs_path: Path,
+    out_dir: Path,
+    major_limit: int = MAJOR_LIMIT,
+    story_paths: Path | None = STORY_PATHS,
+) -> None:
     days, date = monday_service_days(gtfs_path)
     print(
         f"сервісний понеділок: {date}; "
@@ -36,9 +49,29 @@ def build_all(gtfs_path: Path, out_dir: Path, major_limit: int = 15) -> None:
     write_binary_feed(feed, out_dir)
     print(f"бінарний фід: {(out_dir / 'feed.bin').stat().st_size / 1e6:.1f} МБ", file=sys.stderr)
 
-    network = network_geojson(feed)
+    # Усе поза Німеччиною на карту не йде: власна підкладка — сама країна,
+    # і паризька гілка висіла б у порожнечі. На розрахунок це не впливає,
+    # бінарний фід лишається повним.
+    state_names, rings = load_states()
+    states = [
+        state_of(float(feed.stop_lons[i]), float(feed.stop_lats[i]), rings)
+        for i in range(len(feed.stop_ids))
+    ]
+    german = [state >= 0 for state in states]
+
+    network = network_geojson(feed, inside=german)
     (out_dir / "network.json").write_text(json.dumps(network, separators=(",", ":")))
-    print(f"мережа: {len(network['features'])} ділянок", file=sys.stderr)
+    print(
+        f"мережа: {len(network['features'])} ділянок; "
+        f"{sum(german)} станцій у Німеччині з {len(german)}",
+        file=sys.stderr,
+    )
+
+    # Назви ліній по патернах: потрібні лише щоб підписати «що це за потяг».
+    (out_dir / "patterns.json").write_text(
+        json.dumps({"routes": [str(name) for name in feed.pattern_routes]}, ensure_ascii=False,
+                   separators=(",", ":"))
+    )
 
     major = pick_major_stations(feed, limit=major_limit)
 
@@ -49,6 +82,7 @@ def build_all(gtfs_path: Path, out_dir: Path, major_limit: int = 15) -> None:
             "name": str(feed.stop_names[i]),
             "lat": round(float(feed.stop_lats[i]), 5),
             "lon": round(float(feed.stop_lons[i]), 5),
+            **({"s": states[i]} if german[i] else {"out": 1}),
         }
         for i, sid in enumerate(feed.stop_ids)
     }
@@ -59,11 +93,16 @@ def build_all(gtfs_path: Path, out_dir: Path, major_limit: int = 15) -> None:
                 "departAfter": DEPART_AFTER,
                 "returnBy": RETURN_BY,
                 "major": major,
+                "states": state_names,
                 "stations": stations,
             },
             separators=(",", ":"),
         )
     )
+    if story_paths is not None and story_paths.parent.exists():
+        write_story_paths(feed, story_paths)
+        print(f"маршрут Шелдона: {story_paths}", file=sys.stderr)
+
     print(f"готово: {len(stations)} станцій, {len(major)} головних вокзалів", file=sys.stderr)
 
 
@@ -71,7 +110,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Зібрати дані з GTFS-фіду")
     parser.add_argument("gtfs", type=Path, help="шлях до GTFS zip")
     parser.add_argument("--out", type=Path, default=Path("web/public/data"))
-    parser.add_argument("--major", type=int, default=15)
+    parser.add_argument("--major", type=int, default=MAJOR_LIMIT)
     args = parser.parse_args()
     build_all(args.gtfs, args.out, args.major)
 

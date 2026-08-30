@@ -27,9 +27,48 @@
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* Ширина лівої панелі: від неї рахуються всі накладки над картою. */
+  --panel-w: 340px;
+
   --r: 8px;
   --r-md: 12px;
   --r-lg: 16px;
+
+  /* Скло вікон над картою — те саме для підказки й шкали часу. */
+  --glass: rgba(255, 255, 255, 0.78);
+  --glass-blur: rgba(255, 255, 255, 0.66);
+  --glass-line: rgba(224, 224, 228, 0.9);
+  --glass-shine: rgba(255, 255, 255, 0.7);
+  --dot-idle: #ffffff;
+  --dot-expired: #c9c9d0;
+  --network-line: #a8a8b0;
+}
+
+/* Темна тема. У розмітці завжди стоїть уже розвʼязане значення (див.
+   theme.js), тому набір темних змінних тут один. Сигнальний колір не
+   змінюється: бренд той самий при будь-якому світлі. */
+:root[data-theme='dark'] {
+  --ink: #eceef4;
+  --grey-900: #d2d4dc;
+  --grey-700: #a9abb6;
+  --grey-500: #83858f;
+  --grey-300: #5d5f6a;
+  --paper: #14161c;
+  --surface: #1a1d24;
+  --surface-2: #101217;
+  --line: #2b2f38;
+  --line-soft: #23262e;
+
+  --lift-sm: 0 8px 24px -14px rgba(0, 0, 0, 0.6);
+  --lift: 0 20px 50px -20px rgba(0, 0, 0, 0.7);
+
+  --glass: rgba(26, 29, 36, 0.82);
+  --glass-blur: rgba(26, 29, 36, 0.66);
+  --glass-line: rgba(58, 62, 72, 0.9);
+  --glass-shine: rgba(255, 255, 255, 0.06);
+  --dot-idle: #14161c;
+  --dot-expired: #4a4d57;
+  --network-line: #4e515c;
 }
 
 * { box-sizing: border-box; }
@@ -45,8 +84,8 @@ body {
 
 /* Сіра лишається тільки бічна панель — картки живуть на папері. */
 #panel {
-  width: 340px;
-  flex: 0 0 340px;
+  width: var(--panel-w);
+  flex: 0 0 var(--panel-w);
   padding: 28px 24px;
   overflow-y: auto;
   background: var(--surface);
@@ -152,18 +191,6 @@ body {
   color: var(--grey-900);
 }
 
-#intro-close {
-  transition: transform 130ms ease, filter 130ms ease, box-shadow 130ms ease;
-  box-shadow: 0 8px 20px -10px rgba(234, 82, 18, 0.9);
-  margin-top: 10px;
-  padding: 10px 16px;
-  font: 500 14px var(--sans);
-  color: var(--paper);
-  background: var(--signal);
-  border: none;
-  border-radius: var(--r);
-  cursor: pointer;
-}
 
 /* Перемикач вікна поїздки. Рамка є, бо на нього натискають. */
 #window-switch {
@@ -259,7 +286,10 @@ input:focus-visible {
 
 /* Пройдена частина доріжки заливається — значення видно й без цифри.
    --fill проставляє JS у відсотках. */
-#panel input[type='range'] {
+/* Повзунки бічних панелей. Шкала часу має власний вигляд і сюди не
+   входить: у неї повзунок — прозора доріжка поверх профілю. */
+#panel input[type='range'],
+#screen input[type='range'] {
   width: 100%;
   appearance: none;
   height: 3px;
@@ -273,7 +303,8 @@ input:focus-visible {
   );
 }
 
-#panel input[type='range']::-webkit-slider-thumb {
+#panel input[type='range']::-webkit-slider-thumb,
+#screen input[type='range']::-webkit-slider-thumb {
   appearance: none;
   width: 15px;
   height: 15px;
@@ -285,8 +316,10 @@ input:focus-visible {
   transition: transform 130ms ease, box-shadow 130ms ease;
 }
 
-#panel input[type='range']:hover::-webkit-slider-thumb { transform: scale(1.12); }
-#panel input[type='range']:active::-webkit-slider-thumb { transform: scale(0.94); }
+#panel input[type='range']:hover::-webkit-slider-thumb,
+#screen input[type='range']:hover::-webkit-slider-thumb { transform: scale(1.12); }
+#panel input[type='range']:active::-webkit-slider-thumb,
+#screen input[type='range']:active::-webkit-slider-thumb { transform: scale(0.94); }
 
 .toggle {
   display: flex;
@@ -378,7 +411,6 @@ input:focus-visible {
 #lang-switch {
   display: flex;
   gap: 4px;
-  margin-top: 26px;
 }
 
 #lang-switch button {
@@ -399,6 +431,60 @@ input:focus-visible {
 
 #lang-switch button:hover { color: var(--ink); }
 
+/* Перемикач підкладки виглядає як мовний: те саме дрібне моно. */
+#map-switch {
+  display: flex;
+  gap: 2px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+
+#map-switch button {
+  padding: 5px 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--grey-500);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+#map-switch button:hover { color: var(--ink); }
+
+#map-switch button[aria-pressed='true'] {
+  color: var(--signal);
+  border-color: var(--line);
+}
+
+/* Перемикач теми стоїть поруч із мовним і виглядає так само. */
+#theme-switch {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+#theme-switch button {
+  padding: 4px 7px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--grey-500);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+#theme-switch button:hover { color: var(--ink); }
+
+#theme-switch button[aria-pressed='true'] {
+  color: var(--signal);
+  border-color: var(--line);
+}
+
 #lang-switch button[aria-pressed='true'] {
   color: var(--signal);
   background: var(--paper);
@@ -412,13 +498,20 @@ input:focus-visible {
 #hint {
   animation: rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
   position: fixed;
-  top: 20px;
-  left: 360px; /* одразу праворуч від бічної панелі */
   z-index: 2;
-  /* Розмір фіксований під найгірший випадок: найдовший рядок часу (польська,
-     202 px) і назва станції у два рядки. Інакше вікно смикалось би на
-     кожному наведенні. */
-  width: 236px;
+  /* Центрування те саме, що й у шкали часу: два вікна над картою мають
+     стояти на одній осі, а не кожне зі своїм відступом. */
+  left: var(--panel-w);
+  right: 0;
+  /* На одному рівні з перемикачами по кутах. */
+  top: 20px;
+  margin: 0 auto;
+  /* Усе вікно — моноширинне: кожен символ стоїть у власній комірці, тому
+     ані прокрутка табло, ані зміна станції не рухають нічого навколо.
+     Ширина під найдовший рядок часу (польська) у цій сітці. */
+  font-family: var(--mono);
+  font-variant-ligatures: none;
+  width: min(420px, calc(100vw - var(--panel-w) - 44px));
   height: 122px;
   padding: 13px 15px;
   border-radius: var(--r-md);
@@ -428,14 +521,14 @@ input:focus-visible {
 
   /* Те саме скло, що й у шкали часу: два вікна над картою мають бути
      одного матеріалу. */
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(224, 224, 228, 0.9);
-  box-shadow: var(--lift), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  box-shadow: var(--lift), inset 0 1px 0 var(--glass-shine);
 }
 
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
   #hint {
-    background: rgba(255, 255, 255, 0.66);
+    background: var(--glass-blur);
     -webkit-backdrop-filter: blur(14px) saturate(1.4);
     backdrop-filter: blur(14px) saturate(1.4);
   }
@@ -445,43 +538,50 @@ input:focus-visible {
 
 #hint p { margin: 0; }
 
-/* Порожній стан займає ту саму коробку, тому підказку центруємо. */
-.hint-placeholder {
-  display: grid;
-  place-items: center;
-  height: 100%;
-  font-size: 13px;
-  color: var(--grey-300);
-}
-
-/* Порожній стан: розміри не стрибають, лишається сама підказка. */
-#hint.is-empty .hint-name,
+/* Порожній стан — той самий макет, лише блідіший: рядки нікуди не діваються,
+   тому висота підказки однакова до й після наведення. */
+#hint.is-empty { color: var(--grey-300); }
 #hint.is-empty .hint-useful,
-#hint.is-empty .hint-times { display: none; }
-
-#hint:not(.is-empty) .hint-placeholder { display: none; }
+#hint.is-empty .hint-times { color: inherit; }
 
 .hint-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.35;
-  /* довгі назви на кшталт Frankfurt (Main) Hauptbahnhof — не більше двох рядків */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  /* Два рядки завжди: назва на один рядок і назва на два не повинні
+     зсувати час під ними. Перенос рахує JS — кожен рядок крутиться
+     окремим вузлом, тому вони й анімуються одночасно. */
+  height: calc(2 * 1.35em);
   overflow: hidden;
+}
+
+.hint-name .flap {
+  display: block;
+  white-space: nowrap;
 }
 
 .hint-useful {
   margin-top: 5px !important;
   font-size: 13px;
   color: var(--grey-700);
+  /* Цифри однакової ширини — інакше табло смикається під час прокрутки. */
+  font-variant-numeric: tabular-nums;
 }
+
+/* Слоти табло: рівно стільки комірок, скільки символів у значенні. */
+.hint-useful .flap,
+.hint-times .flap {
+  display: inline-block;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.hint-useful .flap { width: 2ch; }
+.hint-times .flap { width: 5ch; }
 
 /* Приїзд і час назад — завжди одним рядком. */
 .hint-times {
   margin-top: 7px !important;
-  font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.03em;
   color: var(--grey-500);
@@ -521,13 +621,13 @@ input:focus-visible {
 #timeline {
   position: fixed;
   z-index: 3;
-  left: 340px;
+  left: var(--panel-w);
   right: 0;
   bottom: 52px; /* вище за атрибуцію карти */
   display: flex;
   align-items: center;
   gap: 18px;
-  width: min(680px, calc(100vw - 384px));
+  width: min(680px, calc(100vw - var(--panel-w) - 44px));
   margin: 0 auto;
   padding: 16px 20px 14px;
   border-radius: var(--r-lg);
@@ -535,16 +635,16 @@ input:focus-visible {
 
   /* Скляна поверхня: крізь неї видно карту, але контур і тінь тримають
      віджет як окремий предмет, а не як пляму. */
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(224, 224, 228, 0.9);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
   box-shadow:
     var(--lift),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    inset 0 1px 0 var(--glass-shine);
 }
 
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
   #timeline {
-    background: rgba(255, 255, 255, 0.66);
+    background: var(--glass-blur);
     -webkit-backdrop-filter: blur(14px) saturate(1.4);
     backdrop-filter: blur(14px) saturate(1.4);
   }
@@ -741,7 +841,6 @@ input:focus-visible {
 }
 
 button:active { transform: scale(0.97); }
-#intro-close:hover { filter: brightness(1.06); }
 
 /* Хто вимкнув анімації в системі — не отримує жодної. */
 @media (prefers-reduced-motion: reduce) {
@@ -752,4 +851,994 @@ button:active { transform: scale(0.97); }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+
+/* --- Панелі в кутах: режим окремо, налаштування сайту окремо --- */
+
+#mode-switch,
+#switches {
+  position: fixed;
+  z-index: 4;
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  border-radius: var(--r-md);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  box-shadow: var(--lift-sm);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  #mode-switch,
+  #switches {
+    background: var(--glass-blur);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
+}
+
+/* Режим — ліворуч, одразу за панеллю: це вибір застосунку, і стоїть він
+   поруч із тим, що перемикає. Мова й тема лишаються в правому куті. */
+#mode-switch {
+  top: 20px;
+  left: calc(var(--panel-w) + 20px);
+}
+
+#switches {
+  top: 20px;
+  right: 20px;
+  align-items: center;
+  gap: 8px;
+}
+
+#mode-switch button {
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--grey-500);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+#mode-switch button:hover:not(:disabled) { color: var(--ink); }
+#mode-switch button:disabled { opacity: 0.45; cursor: default; }
+
+#mode-switch button[aria-checked='true'] {
+  color: var(--signal);
+  border-color: var(--line);
+  background: var(--paper);
+}
+
+/* Тексту в сюжетному режимі сторінка, а не підпис, тому панель ширша —
+   щонайменше третина екрана. Накладки над картою підуть за нею самі. */
+:root[data-mode='sheldon'] { --panel-w: max(400px, 34vw); }
+
+/* Скрінсейвер живе картою, тому панель вужча за третину екрана. */
+:root[data-mode='screen'] { --panel-w: clamp(300px, 26vw, 380px); }
+
+/* --- Маршрут Шелдона: довга сторінка збоку --- */
+
+#story {
+  /* Сторінка стоїть там само, де панель денного режиму — ліворуч. Праворуч
+     угорі живуть перемикачі, і накладатись їм нема на що. */
+  order: -1;
+  width: var(--panel-w);
+  flex: 0 0 var(--panel-w);
+  padding: 0 0 40px;
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--line-soft);
+}
+
+#story[hidden] { display: none; }
+
+#story-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+#story h1 {
+  margin: 22px 24px 0;
+  font-size: 21px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+#story-lead {
+  margin: 10px 24px 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--grey-700);
+}
+
+#story-routes {
+  display: grid;
+  gap: 8px;
+  margin: 22px 24px 0;
+}
+
+/* Картка маршруту — вибір того, що показує карта. */
+.story-route {
+  display: grid;
+  gap: 3px;
+  padding: 11px 13px;
+  text-align: left;
+  font: inherit;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+.story-route:hover { border-color: var(--grey-300); }
+
+.story-route.is-active {
+  border-color: var(--signal);
+  box-shadow: inset 3px 0 0 var(--signal);
+}
+
+.story-route-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--grey-500);
+}
+
+.story-route-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.story-route-summary {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--grey-700);
+}
+
+.story-section {
+  margin: 26px 24px 0;
+  padding-left: 13px;
+  border-left: 2px solid var(--line);
+  cursor: pointer;
+}
+
+.story-section.is-active { border-left-color: var(--signal); }
+
+.story-section h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.story-section p {
+  margin: 7px 0 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--grey-700);
+}
+
+
+/* --- Скрінсейвер --- */
+
+#screen {
+  order: -1;
+  width: var(--panel-w);
+  flex: 0 0 var(--panel-w);
+  padding: 20px 22px;
+  /* Панель скрінсейвера не прокручується: усе, що тут є, має вміщатись
+     цілком, інакше це вже не табло, а сторінка. */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--line-soft);
+}
+
+#screen[hidden] { display: none; }
+
+#screen h1 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+
+#screen-lead {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--grey-700);
+}
+
+#screen h2 {
+  margin: 18px 0 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--grey-500);
+}
+
+/* Два числа, які змінюються щокадру: моно, щоб не смикались. */
+.screen-figures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.screen-figures div {
+  padding: 12px 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+
+.screen-figures div { padding: 10px 11px; }
+
+.screen-figures span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  color: var(--signal);
+}
+
+.screen-figures small::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 1px;
+}
+
+/* Ті самі три відтінки, що й крапки на карті. */
+.screen-figures div:nth-child(1) small { color: #c04a12; }
+.screen-figures div:nth-child(2) small { color: #f6a072; }
+.screen-figures div:nth-child(3) small { color: #6b2206; }
+
+.screen-figures small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--grey-500);
+}
+
+/* Пульс дня: 24 стовпчики, по одному на годину. */
+#screen-hours {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 64px;
+  padding: 0 1px;
+}
+
+.screen-bar {
+  flex: 1;
+  min-height: 1px;
+  background: var(--seq-2);
+  border-radius: 1px 1px 0 0;
+}
+
+#screen-top {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rank;
+}
+
+#screen-top li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#screen-top b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--grey-500);
+}
+
+#screen-speed,
+#screen-scope {
+  display: flex;
+  gap: 4px;
+}
+
+#screen-scope { margin-top: 8px; }
+
+#screen-speed button,
+#screen-scope button {
+  flex: 1;
+  padding: 8px 10px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--grey-500);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+#screen-speed button[aria-checked='true'],
+#screen-scope button[aria-checked='true'] {
+  color: var(--signal);
+  border-color: var(--signal);
+}
+
+/* Годинник: те саме скло, що й підказка, тільки цифри великі. */
+#screen-clock {
+  position: fixed;
+  z-index: 3;
+  left: var(--panel-w);
+  right: 0;
+  /* Нижче за перемикачі: у скрінсейвері панель ширша, і на вузькому екрані
+     годинник ліз би просто під них. */
+  top: 76px;
+  margin: 0 auto;
+  width: min(420px, calc(100vw - var(--panel-w) - 44px));
+  padding: 14px 16px 16px;
+  text-align: center;
+  border-radius: var(--r-md);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  box-shadow: var(--lift), inset 0 1px 0 var(--glass-shine);
+}
+
+#screen-clock[hidden] { display: none; }
+
+/* У скрінсейвері табло стоїть там само, де годинник, якому воно на час
+   прожектора поступається місцем. */
+:root[data-mode='screen'] #hint { top: 76px; }
+
+/* Табло скрінсейвера росте під текст: і в потяга назви бувають довгі, і
+   факт — це абзац. Обрізати тут нічого не можна. */
+#hint.is-live,
+#hint.is-fact {
+  height: auto;
+  min-height: 122px;
+  padding-bottom: 15px;
+}
+
+#hint.is-live .hint-name,
+#hint.is-fact .hint-name {
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+#hint.is-live .hint-name .flap,
+#hint.is-fact .hint-name .flap {
+  display: block;
+  white-space: normal;
+}
+
+#hint.is-live .hint-useful .flap,
+#hint.is-live .hint-times .flap {
+  display: inline;
+  width: auto;
+  white-space: normal;
+}
+
+#hint.is-live .hint-useful,
+#hint.is-live .hint-times {
+  white-space: normal;
+}
+
+/* Факт читається як текст, а не як табло: звичайна вага й трохи вільніший
+   рядок. Ширшим вікно теж робимо — абзац у 292 px виглядає стовпчиком. */
+#hint.is-fact {
+  width: min(520px, calc(100vw - var(--panel-w) - 44px));
+}
+
+#hint.is-fact .hint-name {
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  #screen-clock {
+    background: var(--glass-blur);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
+}
+
+#screen-time {
+  display: block;
+  font-family: var(--mono);
+  font-size: 56px;
+  /* 1 обрізає верхівки цифр у Roboto Mono */
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+
+/* Список земель у скрінсейвері */
+#screen-regions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#screen-regions li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+
+#screen-regions span { flex: 1; }
+
+#screen-regions i {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--seq-2);
+}
+
+#screen-regions b {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--grey-500);
+}
+
+/* Картка потяга в панелі — той самий підпис, що й на табло. */
+#screen-train {
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--grey-700);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+
+#screen-train b {
+  display: block;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+
+/* Стрічка останніх відправлень і смуга покриття */
+#screen-ticker {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#screen-ticker li {
+  padding: 5px 0;
+  font-size: 12.5px;
+  color: var(--grey-700);
+  border-bottom: 1px solid var(--line-soft);
+  animation: rise 240ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+#screen-ticker li:first-child { color: var(--ink); }
+
+
+
+/* Панель скрінсейвера можна згорнути: спершу налаштування, потім усю. */
+#screen-tools {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+#screen-tools button {
+  flex: 1;
+  padding: 6px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--grey-500);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+#screen-tools button:hover { color: var(--signal); border-color: var(--signal); }
+
+#screen.no-settings #screen-settings { display: none; }
+
+:root[data-panel='off'][data-mode='screen'] { --panel-w: 0px; }
+:root[data-panel='off'] #screen { display: none; }
+
+#screen-show-panel {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--grey-700);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  box-shadow: var(--lift-sm);
+  cursor: pointer;
+}
+
+#screen-show-panel[hidden] { display: none; }
+#screen-show-panel:hover { color: var(--signal); border-color: var(--signal); }
+
+/* Шеврон дивиться туди, звідки виїде панель. */
+#screen-show-panel span:first-child {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--signal);
+}
+
+
+/* Підсумки доби: назва ліворуч, число праворуч. */
+#screen-today {
+  margin: 0 0 10px;
+}
+
+#screen-today div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#screen-today dt {
+  font-size: 12px;
+  color: var(--grey-700);
+}
+
+#screen-today dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+#screen-peak {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--grey-500);
+}
+
+
+/* --- Вікно привітання: вибір режиму --- */
+
+.intro-lead {
+  margin: 22px 0 10px !important;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--grey-500);
+}
+
+#intro-modes {
+  display: grid;
+  gap: 8px;
+}
+
+#intro-modes button {
+  display: grid;
+  gap: 2px;
+  padding: 11px 14px;
+  text-align: left;
+  font: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+#intro-modes button:hover { border-color: var(--signal); }
+#intro-modes b { font-size: 14px; color: var(--ink); }
+#intro-modes small { font-size: 12px; color: var(--grey-500); }
+
+#intro-tour {
+  margin-top: 12px;
+  padding: 9px 12px;
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--grey-700);
+  background: none;
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+#intro-tour:hover { color: var(--signal); border-color: var(--signal); }
+
+/* --- Екскурсія --- */
+
+#tour { position: fixed; inset: 0; z-index: 20; }
+#tour[hidden] { display: none; }
+
+/* Підсвітка — прозорий блок із велетенською тінню: усе поза ним темніє. */
+#tour-spot {
+  position: absolute;
+  border-radius: var(--r);
+  border: 1px solid var(--signal);
+  box-shadow: 0 0 0 9999px rgba(12, 16, 26, 0.55);
+  transition:
+    top 320ms cubic-bezier(0.2, 0.7, 0.3, 1),
+    left 320ms cubic-bezier(0.2, 0.7, 0.3, 1),
+    width 320ms cubic-bezier(0.2, 0.7, 0.3, 1),
+    height 320ms cubic-bezier(0.2, 0.7, 0.3, 1);
+  pointer-events: none;
+}
+
+#tour-card {
+  position: absolute;
+  width: 320px;
+  padding: 16px 18px 14px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--lift);
+  transition:
+    top 320ms cubic-bezier(0.2, 0.7, 0.3, 1),
+    left 320ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* Стрілка в бік підсвіченого. */
+#tour-card::before {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  transform: rotate(45deg);
+}
+
+#tour-card[data-side='bottom']::before {
+  top: -6px;
+  left: calc(50% - 5px);
+  border-right: none;
+  border-bottom: none;
+}
+
+#tour-card[data-side='top']::before {
+  bottom: -6px;
+  left: calc(50% - 5px);
+  border-left: none;
+  border-top: none;
+}
+
+#tour-card[data-side='right']::before {
+  left: -6px;
+  top: calc(50% - 5px);
+  border-right: none;
+  border-top: none;
+}
+
+#tour-card[data-side='left']::before {
+  right: -6px;
+  top: calc(50% - 5px);
+  border-left: none;
+  border-bottom: none;
+}
+
+#tour-card[data-side='center']::before { display: none; }
+
+#tour-step {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--grey-500);
+}
+
+#tour-card h2 {
+  margin: 6px 0 0;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+#tour-card p {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--grey-700);
+}
+
+#tour-nav {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+#tour-nav button {
+  padding: 7px 11px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--grey-700);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+#tour-nav button:hover:not(:disabled) { color: var(--signal); border-color: var(--signal); }
+#tour-nav button:disabled { opacity: 0.4; cursor: default; }
+
+/* Специфічність тут навмисна: правило вище — #tour-nav button — важче за
+   просто #tour-next, і без вкладеності кнопка лишалась білою. */
+#tour-nav #tour-next {
+  color: var(--paper);
+  background: var(--signal);
+  border-color: var(--signal);
+}
+
+#tour-nav #tour-next:hover { color: var(--paper); filter: brightness(1.06); }
+
+#tour-nav #tour-skip { margin-left: auto; border-color: transparent; }
+
+
+/* --- Звідки взяті дані --- */
+
+#sources-open {
+  padding: 5px 9px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--grey-500);
+  background: none;
+  border: 1px solid transparent;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  padding-left: 10px;
+  margin-left: 2px;
+  cursor: pointer;
+}
+
+#sources-open:hover { color: var(--signal); }
+
+#sources {
+  position: fixed;
+  z-index: 11;
+  /* Центруємо через inset+margin, а не transform: анімація появи вже
+     використовує transform і збила б центрування. */
+  inset: 0;
+  margin: auto;
+  width: min(560px, calc(100vw - 48px));
+  height: fit-content;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding: 26px 28px 24px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--lift);
+  animation: rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+#sources[hidden] { display: none; }
+
+#sources h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+#sources h3 {
+  margin: 22px 0 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--grey-500);
+}
+
+#sources > p {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--grey-700);
+}
+
+#sources-list {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+#sources-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#sources-list a,
+#sources-wiki a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+}
+
+#sources-list a:hover,
+#sources-wiki a:hover { color: var(--signal); border-color: var(--signal); }
+
+.sources-license {
+  margin-left: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--grey-500);
+}
+
+#sources-list p {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--grey-700);
+}
+
+#sources-wiki {
+  font-size: 12.5px;
+  line-height: 1.9;
+  color: var(--grey-500);
+}
+
+#sources-photos {
+  margin-top: 18px !important;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12.5px !important;
+  color: var(--grey-500) !important;
+}
+
+#sources-close {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--grey-500);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+#sources-close:hover { color: var(--signal); }
+
+
+/* --- Вузькі екрани ---
+   Панель у 340 px поруч із картою має сенс, поки карті лишається хоча б
+   стільки ж. Нижче — розкладаємо в стовпчик: карта зверху, панель під нею.
+   Накладки перестають рахуватись від ширини панелі, бо збоку її немає. */
+@media (max-width: 760px) {
+  :root,
+  :root[data-mode='sheldon'],
+  :root[data-mode='screen'] {
+    --panel-w: 0px;
+  }
+
+  body {
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  /* Карта зверху, панель під нею: усі накладки — табло, годинник, шкала —
+     прив’язані до верху екрана, і так вони лягають саме на карту. Знизу
+     лишаємо місце під перемикачі, які стоять поверх панелі. */
+  #map {
+    order: 0;
+    flex: 0 0 45vh;
+    height: 45vh;
+  }
+
+  #panel,
+  #story,
+  #screen {
+    order: 1;
+    width: 100%;
+    flex: 1 1 auto;
+    max-height: none;
+    overflow-y: auto;
+    padding-bottom: 120px;
+    border-right: none;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  /* Перемикачі по кутах карти заважали б панелі, тому режим переїжджає
+     вниз, а мова з темою лишається вгорі й стискається. */
+  #mode-switch {
+    top: auto;
+    bottom: 14px;
+    left: 12px;
+    right: 12px;
+    justify-content: center;
+    overflow-x: auto;
+  }
+
+  #switches {
+    top: auto;
+    bottom: 62px;
+    right: 12px;
+    left: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  #hint,
+  #screen-clock,
+  #timeline {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+  }
+
+  #hint { top: 12px; }
+  :root[data-mode='screen'] #hint,
+  #screen-clock { top: 12px; }
+
+  #hint.is-fact { width: auto; }
+
+  #screen-time { font-size: 40px; }
+
+  /* Шкала часу тримається нижнього краю карти, а не низу екрана. */
+  #timeline {
+    top: calc(45vh - 96px);
+    bottom: auto;
+    gap: 12px;
+  }
+
+  #sources { padding: 20px 18px; }
+
+  #screen-show-panel { bottom: 108px; }
+
+  /* Картка екскурсії на телефоні завжди на всю ширину внизу. */
+  #tour-card {
+    width: calc(100vw - 24px);
+    left: 12px !important;
+    top: auto !important;
+    bottom: 12px;
+  }
+
+  #tour-card::before { display: none; }
 }
