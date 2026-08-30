@@ -23,8 +23,12 @@ from build.story_paths import write_module as write_story_paths
 
 
 # Лінії сюжетного режиму — не дані відповіді, а частина фронтенду, тому
-# лежать модулем у web/src. Але будуються з того самого фіду, і якщо фід
+# лежать модулем у web/src. Будуються з того самого фіду: якщо фід
 # перезібрати без них, вони тихо розійдуться з мережею на карті.
+#
+# За замовчуванням `build_all` їх не чіпає, і шлях підставляє лише CLI:
+# інакше будь-який тест, що зібрав фікстурний фід, перезаписував би цей
+# файл трьома станціями з фікстури. Один раз так і сталося.
 STORY_PATHS = Path("web/src/story-paths.js")
 
 
@@ -32,7 +36,7 @@ def build_all(
     gtfs_path: Path,
     out_dir: Path,
     major_limit: int = MAJOR_LIMIT,
-    story_paths: Path | None = STORY_PATHS,
+    story_paths: Path | None = None,
 ) -> None:
     days, date = monday_service_days(gtfs_path)
     print(
@@ -111,8 +115,9 @@ def main() -> None:
     parser.add_argument("gtfs", type=Path, help="шлях до GTFS zip")
     parser.add_argument("--out", type=Path, default=Path("web/public/data"))
     parser.add_argument("--major", type=int, default=MAJOR_LIMIT)
+    parser.add_argument("--story-paths", type=Path, default=STORY_PATHS)
     args = parser.parse_args()
-    build_all(args.gtfs, args.out, args.major)
+    build_all(args.gtfs, args.out, args.major, args.story_paths)
 
 
 if __name__ == "__main__":
