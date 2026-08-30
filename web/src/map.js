@@ -1294,12 +1294,20 @@ function closeSources() {
 
 /** Якщо фото не завантажилось, прибираємо його, щоб не було битої іконки. */
 function setUpIntroImage() {
-  // Кадрів із серіалу немає в публічній збірці — права в студії. Якщо файл
-  // не завантажився, просто прибираємо картинку: вікна працюють без неї.
-  for (const photo of [document.querySelector('.intro-photo'), el('story-photo')]) {
+  // Кадрів із серіалу немає в публічній збірці — права в студії. Тому
+  // джерело підставляємо з коду й прибираємо картинку, якщо файл не
+  // знайшовся: інакше на місці фото висів би значок битого зображення.
+  const photos = [
+    [document.querySelector('.intro-photo'), 'intro.webp'],
+    [el('story-photo'), 'sheldon.webp'],
+  ];
+  for (const [photo, file] of photos) {
     if (!photo) continue;
-    photo.hidden = false;
     photo.onerror = () => photo.remove();
+    photo.onload = () => {
+      photo.hidden = false;
+    };
+    photo.src = `${import.meta.env.BASE_URL}${file}`;
   }
 }
 

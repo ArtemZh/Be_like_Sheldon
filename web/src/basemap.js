@@ -11,6 +11,10 @@
  */
 
 const GLYPHS = 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf';
+
+// Сайт може жити в підкаталозі (GitHub Pages), тому шляхи до власної
+// геометрії рахуємо від бази збірки, а не від кореня.
+const GEO = `${import.meta.env.BASE_URL}geo`;
 export const FONT = ['Noto Sans Regular'];
 
 const COLORS = {
@@ -82,10 +86,10 @@ export function basemapStyle(theme) {
     version: 8,
     glyphs: GLYPHS,
     sources: {
-      states: { type: 'geojson', data: '/geo/germany-states.json' },
+      states: { type: 'geojson', data: `${GEO}/germany-states.json` },
       // Підписи окремим шаром точок: у MultiPolygon MapLibre підписує
       // кожен острів, і Шлезвіг-Гольштейн зʼявлявся двічі.
-      'state-labels': { type: 'geojson', data: '/geo/germany-state-labels.json' },
+      'state-labels': { type: 'geojson', data: `${GEO}/germany-state-labels.json` },
     },
     layers: [
       { id: 'water', type: 'background', paint: { 'background-color': c.water } },
