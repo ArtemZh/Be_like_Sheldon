@@ -1,5 +1,3 @@
-import { nextFrame, cancelFrame } from './frames.js';
-
 /**
  * Механічне табло: літери «пробігають» алфавіт, поки не стануть на місце.
  *
@@ -87,7 +85,7 @@ const running = new WeakMap();
  */
 export function flapText(node, text, options = {}) {
   const previous = running.get(node);
-  if (previous) cancelFrame(previous);
+  if (previous) cancelAnimationFrame(previous);
 
   const reduced =
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -112,13 +110,13 @@ export function flapText(node, text, options = {}) {
       frame += 1;
     }
     if (frame <= total) {
-      running.set(node, nextFrame(tick));
+      running.set(node, requestAnimationFrame(tick));
     } else {
       node.textContent = text;
       running.delete(node);
     }
   };
-  running.set(node, nextFrame(tick));
+  running.set(node, requestAnimationFrame(tick));
 }
 
 /**

@@ -12,8 +12,6 @@ function renderToday(counts) {
 
 }
 
-import { nextFrame, cancelFrame, hidden } from './frames.js';
-import { mirrorFrame } from './mirror.js';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -523,26 +521,6 @@ function paintFact(text) {
  * Короткий звіт про себе для macOS-скрінсейвера: у веб-в'ю немає ні консолі,
  * ні налагоджувача, а розібратись, чому екран порожній, якось треба.
  */
-/**
- * У скрінсейвері macOS кожен шар сторінки потрапляє на екран лише раз, і
- * далі картинка застигає, хоч сторінка живе. Найдешевше, що змушує систему
- * забрати новий кадр, — крихітна зміна розкладки двічі на секунду.
- */
-let nudge = null;
-
-function nudgeCompositor() {
-  if (!hidden()) return;
-  if (nudge == null) {
-    nudge = document.createElement('div');
-    // `contain: strict` лишає перерахунок усередині цієї крихти, тож поштовх
-    // коштує майже нічого, хоч і трапляється щокадру.
-    nudge.style.cssText =
-      'position:fixed;left:0;bottom:0;width:1px;height:1px;contain:strict;opacity:0.01';
-    document.body.append(nudge);
-  }
-  nudge.style.height = nudge.style.height === '1px' ? '2px' : '1px';
-}
-
 function reportToSaver() {
   const say = globalThis.webkit?.messageHandlers?.saver;
   if (!say) return;
@@ -782,15 +760,7 @@ function screenTick(timestamp) {
   state.screen.lastTime = time;
   paintClock(time);
   trainSpotlight(timestamp, time);
-  // Прихована сторінка не отримує кадрів від MapLibre — просимо явно. Копіюємо
-  // при цьому попередній кадр, а не щойно замовлений: наприкінці малювання
-  // верхні шари (крапки станцій, підписи) ще не лягли в буфер.
-  if (hidden()) {
-    mirrorFrame(map.getCanvas());
-    map.redraw();
-    nudgeCompositor();
-  }
-  screen.frame = nextFrame(screenTick);
+  screen.frame = requestAnimationFrame(screenTick);
 }
 
 /**
@@ -941,11 +911,11 @@ function startScreen() {
   screen.lastMinute = -1;
   screen.ticker = [];
   el('screen-duration-value').textContent = t('screen.minutes', { n: screen.durationMinutes });
-  if (!screen.frame) screen.frame = nextFrame(screenTick);
+  if (!screen.frame) screen.frame = requestAnimationFrame(screenTick);
 }
 
 function stopScreen() {
-  cancelFrame(state.screen.frame);
+  if (state.screen.frame) cancelAnimationFrame(state.screen.frame);
   state.screen.frame = 0;
   if (state.layersReady) map.getSource('live-stops').setData(EMPTY);
 }
@@ -1093,9 +1063,6 @@ const map = new maplibregl.Map({
   style: mapStyle(currentTheme()),
   bounds: GERMANY,
   fitBoundsOptions: { padding: 28 },
-  // Скрінсейвер macOS не показує шар WebGL, тож кадр доводиться копіювати у
-  // звичайне полотно — а для цього WebGL має зберігати намальоване.
-  preserveDrawingBuffer: new URLSearchParams(location.search).get('mode') === 'screen',
 });
 
 // у dev карта доступна з консолі — інакше шари нема чим оглянути
