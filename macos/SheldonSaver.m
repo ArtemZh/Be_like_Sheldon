@@ -72,6 +72,7 @@ static ScreenSaverDefaults *Settings(void) {
 @property(nonatomic, strong) NSButton *syncField;
 @property(nonatomic, strong) NSButton *siteLink;
 @property(nonatomic, strong) NSButton *codeLink;
+@property(nonatomic, strong) NSButton *coffeeLink;
 @property(nonatomic, strong) NSSlider *pauseField;
 @property(nonatomic, strong) NSTextField *pauseLabel;
 @property(nonatomic, strong) NSSlider *tourField;
@@ -243,6 +244,7 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
     @"open" : @[ @"Відкрити налаштування", @"Open settings", @"Einstellungen öffnen", @"Otwórz ustawienia" ],
     @"site" : @[ @"Сайт проєкту", @"Project site", @"Projektseite", @"Strona projektu" ],
     @"code" : @[ @"Код на GitHub", @"Code on GitHub", @"Code auf GitHub", @"Kod na GitHubie" ],
+    @"coffee" : @[ @"Купити каву", @"Buy me a coffee", @"Kaffee spendieren", @"Postaw kawę" ],
     @"cancel" : @[ @"Скасувати", @"Cancel", @"Abbrechen", @"Anuluj" ],
     @"save" : @[ @"Зберегти", @"Save", @"Sichern", @"Zapisz" ],
     @"min" : @[ @"хв", @"min", @"Min", @"min" ],
@@ -375,9 +377,11 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
 
   // Куди подивитись, якщо захочеться подробиць: сайт і код.
   self.siteLink = [self linkButtonAtX:20 y:20 action:@selector(openSite:)];
-  self.codeLink = [self linkButtonAtX:130 y:20 action:@selector(openCode:)];
+  self.codeLink = [self linkButtonAtX:120 y:20 action:@selector(openCode:)];
+  self.coffeeLink = [self linkButtonAtX:220 y:20 action:@selector(openCoffee:)];
   [content addSubview:self.siteLink];
   [content addSubview:self.codeLink];
+  [content addSubview:self.coffeeLink];
 
   self.cancelButton = [NSButton buttonWithTitle:@"" target:self action:@selector(closeSheet:)];
   self.cancelButton.frame = NSMakeRect(250, 14, 100, 32);
@@ -424,7 +428,7 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
 /** Посилання виглядає як посилання, а не як кнопка: це не дія, а довідка. */
 - (NSButton *)linkButtonAtX:(CGFloat)x y:(CGFloat)y action:(SEL)action {
   NSButton *button = [NSButton buttonWithTitle:@"" target:self action:action];
-  button.frame = NSMakeRect(x, y, 110, 24);
+  button.frame = NSMakeRect(x, y, 100, 24);
   button.bordered = NO;
   button.contentTintColor = NSColor.linkColor;
   button.font = [NSFont systemFontOfSize:11];
@@ -434,6 +438,10 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
 - (void)openSite:(id)sender {
   [NSWorkspace.sharedWorkspace
       openURL:[NSURL URLWithString:@"https://artemzh.github.io/Be_like_Sheldon"]];
+}
+
+- (void)openCoffee:(id)sender {
+  [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"https://buycoffee.to/artem_pm"]];
 }
 
 - (void)openCode:(id)sender {
@@ -492,6 +500,7 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
   self.syncField.title = text(@"sync");
   self.siteLink.title = text(@"site");
   self.codeLink.title = text(@"code");
+  self.coffeeLink.title = text(@"coffee");
   self.clockButton.title = text(@"open");
   self.cancelButton.title = text(@"cancel");
   self.saveButton.title = text(@"save");

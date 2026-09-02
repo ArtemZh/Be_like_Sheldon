@@ -147,46 +147,50 @@
 
     <!-- Вступне вікно: показується один раз, далі відкривається з панелі. -->
     <div id="intro-backdrop" hidden></div>
+    <!-- Одне вікно на все: воно і вітає, і розповідає про проєкт, і веде
+         до коду, джерел та кави. Кнопка «?» відкриває його ж. -->
     <div id="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title" hidden>
-      <img
-        class="intro-photo"
-        data-src="intro.webp"
-        data-i18n-alt="photo.alt" alt=""
-        hidden
-      />
+      <button type="button" id="intro-close" aria-label="×">×</button>
+      <h2 id="intro-title" data-i18n="intro.title">Понеділок можна не працювати</h2>
 
-      <h2 id="intro-title" data-i18n="intro.title">You don’t have to work on Monday</h2>
+      <div class="intro-grid">
+        <div class="intro-text">
+          <img
+            class="intro-photo"
+            data-src="intro.webp"
+            data-i18n-alt="photo.alt" alt=""
+            hidden
+          />
 
-      <p data-i18n="intro.p1"></p>
-      <p data-i18n="intro.p2"></p>
-      <p data-i18n="intro.p3"></p>
-      <p data-i18n="intro.p4"></p>
+          <p data-i18n="intro.p1"></p>
+          <p data-i18n="intro.p2"></p>
+          <p data-i18n="intro.p3"></p>
+          <p data-i18n="intro.p4"></p>
 
-      <p class="intro-lead" data-i18n="intro.pick">З чого почнемо?</p>
-      <div id="intro-modes">
-        <button type="button" data-mode="day"><b data-i18n="mode.day">Куди доїду</b><small data-i18n="intro.day">карта одноденних поїздок</small></button>
-        <button type="button" data-mode="sheldon"><b data-i18n="mode.sheldon">Маршрут Шелдона</b><small data-i18n="intro.sheldon">історія однієї поїздки</small></button>
-        <button type="button" data-mode="screen"><b data-i18n="mode.screen">Скрінсейвер</b><small data-i18n="intro.screen">розклад у русі, без кліків</small></button>
+          <p class="intro-lead" data-i18n="intro.pick">З чого почнемо?</p>
+          <div id="intro-modes">
+            <button type="button" data-mode="day"><b data-i18n="mode.day">Куди доїду</b><small data-i18n="intro.day">карта одноденних поїздок</small></button>
+            <button type="button" data-mode="sheldon"><b data-i18n="mode.sheldon">Маршрут Шелдона</b><small data-i18n="intro.sheldon">історія однієї поїздки</small></button>
+            <button type="button" data-mode="screen"><b data-i18n="mode.screen">Скрінсейвер</b><small data-i18n="intro.screen">розклад у русі, без кліків</small></button>
+          </div>
+          <button type="button" id="intro-tour" data-i18n="intro.tour">Показати екскурсію</button>
+        </div>
+
+        <aside class="intro-side">
+          <p class="intro-how" data-i18n="about.how"></p>
+
+          <img id="about-qr" src="qr-coffee.png" alt="" data-i18n-alt="about.qrAlt" hidden />
+          <p class="intro-qr-note" data-i18n="about.qr"></p>
+
+          <ul id="about-links">
+            <li><a id="about-code" href="https://github.com/ArtemZh/Be_like_Sheldon" target="_blank" rel="noopener" data-i18n="about.code">Код на GitHub</a></li>
+            <li><button type="button" id="about-sources" data-i18n="about.sources">Джерела даних</button></li>
+            <li><a id="about-coffee" href="https://buycoffee.to/artem_pm" target="_blank" rel="noopener" data-i18n="about.coffee">Купити мені каву</a></li>
+          </ul>
+        </aside>
       </div>
-      <button type="button" id="intro-tour" data-i18n="intro.tour">Показати екскурсію</button>
     </div>
 
-    <!-- Про проєкт — окреме вікно від вітального: вітальне вмовляє поїхати,
-         це пояснює, як воно влаштоване, і веде до коду й джерел. -->
-    <div id="about" role="dialog" aria-modal="true" aria-labelledby="about-title" hidden>
-      <h2 id="about-title" data-i18n="about.title">Про проєкт</h2>
-      <p data-i18n="about.what"></p>
-      <p data-i18n="about.how"></p>
-      <p data-i18n="about.data"></p>
-
-      <ul id="about-links">
-        <li><a id="about-code" href="https://github.com/ArtemZh/Be_like_Sheldon" target="_blank" rel="noopener" data-i18n="about.code">Код на GitHub</a></li>
-        <li><button type="button" id="about-sources" data-i18n="about.sources">Джерела даних</button></li>
-        <li><button type="button" id="about-welcome" data-i18n="about.welcome">Вітальне вікно</button></li>
-        <li><a id="about-coffee" href="https://buycoffee.to/artem_pm" target="_blank" rel="noopener" data-i18n="about.coffee">Купити мені каву</a></li>
-      </ul>
-      <button type="button" id="about-close" aria-label="×">×</button>
-    </div>
 
 
     <!-- Підказка живе окремим вікном, а не попапом на марці: попап

@@ -419,29 +419,23 @@ export const STRINGS = {
     de: 'Fakt bleibt',
     pl: 'Fakt trwa',
   },
-  'about.title': {
-    uk: 'Про проєкт',
-    en: 'About',
-    de: 'Über das Projekt',
-    pl: 'O projekcie',
-  },
-  'about.what': {
-    uk: 'Три режими на одній карті Німеччини: куди можна з’їздити за день, розказана поїздка Шелдона Купера і скрінсейвер із розкладом у русі.',
-    en: 'Three modes on one map of Germany: where you can get in a day, Sheldon Cooper’s trip told as a map, and a screen saver with the timetable in motion.',
-    de: 'Drei Modi auf einer Karte Deutschlands: wohin man an einem Tag kommt, Sheldon Coopers Reise als erzählte Karte und ein Bildschirmschoner mit dem Fahrplan in Bewegung.',
-    pl: 'Trzy tryby na jednej mapie Niemiec: dokąd da się dojechać w jeden dzień, opowiedziana podróż Sheldona Coopera i wygaszacz z rozkładem w ruchu.',
-  },
   'about.how': {
     uk: 'Нічого не пораховано наперед. Браузер один раз завантажує компактний бінарний розклад і рахує маршрути сам, у фоновому потоці, — тому стартом може бути будь-яка з 7737 станцій, куди ви клікнете.',
     en: 'Nothing is precomputed. The browser loads a compact binary timetable once and works the routes out itself, in a background thread — so the origin can be any of the 7737 stations you click on.',
     de: 'Nichts ist vorberechnet. Der Browser lädt einmal einen kompakten binären Fahrplan und rechnet die Verbindungen selbst, in einem Hintergrund-Thread — der Start kann also jede der 7737 Stationen sein, die Sie anklicken.',
     pl: 'Nic nie jest policzone z góry. Przeglądarka raz wczytuje kompaktowy binarny rozkład i sama liczy trasy, w wątku w tle — więc początkiem może być każda z 7737 stacji, którą klikniesz.',
   },
-  'about.data': {
-    uk: 'Розклад — знімок одного понеділка з відкритого фіду gtfs.de, тільки регіональні потяги. Метрика — не час у дорозі, а час на місці: скільки годин лишиться, якщо ввечері треба бути вдома.',
-    en: 'The timetable is a snapshot of one Monday from the open gtfs.de feed, regional trains only. The metric is not time in transit but time on the ground: how many hours are left if you have to be home in the evening.',
-    de: 'Der Fahrplan ist eine Momentaufnahme eines Montags aus dem offenen gtfs.de-Feed, nur Regionalzüge. Gemessen wird nicht die Fahrzeit, sondern die Zeit vor Ort: wie viele Stunden bleiben, wenn Sie abends zu Hause sein müssen.',
-    pl: 'Rozkład to migawka jednego poniedziałku z otwartego feedu gtfs.de, tylko pociągi regionalne. Miarą nie jest czas w drodze, lecz czas na miejscu: ile godzin zostanie, jeśli wieczorem trzeba być w domu.',
+  'about.qr': {
+    uk: 'Якщо карта стала в пригоді — можна поставити мені каву. Код і дані від цього не зміняться: усе лишиться відкритим.',
+    en: 'If the map came in useful, you can buy me a coffee. It changes nothing about the code or the data: both stay open.',
+    de: 'Wenn die Karte nützlich war, können Sie mir einen Kaffee ausgeben. Am Code und an den Daten ändert das nichts: beides bleibt offen.',
+    pl: 'Jeśli mapa się przydała, możesz postawić mi kawę. Nic to nie zmienia w kodzie ani w danych: jedno i drugie zostaje otwarte.',
+  },
+  'about.qrAlt': {
+    uk: 'QR-код на сторінку підтримки',
+    en: 'A QR code to the support page',
+    de: 'Ein QR-Code zur Unterstützungsseite',
+    pl: 'Kod QR do strony wsparcia',
   },
   'about.code': {
     uk: 'Код на GitHub',
@@ -454,12 +448,6 @@ export const STRINGS = {
     en: 'Data sources',
     de: 'Datenquellen',
     pl: 'Źródła danych',
-  },
-  'about.welcome': {
-    uk: 'Вітальне вікно',
-    en: 'The welcome window',
-    de: 'Das Willkommensfenster',
-    pl: 'Okno powitalne',
   },
   'about.coffee': {
     uk: 'Купити мені каву',

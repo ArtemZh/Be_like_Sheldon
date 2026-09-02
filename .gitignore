@@ -20,6 +20,11 @@ photo-*.webp
 photo-*.png
 # Кадри з серіалу під будь-якою назвою: права в студії, у репозиторій вони
 # не йдуть навіть випадково.
+# Робочі файли в корені: самі QR і знімки екрана, з яких зроблено
+# web/public/qr-coffee.png. У репозиторій іде лише готова картинка.
+QR_*.png
+Screenshot *.png
+
 *young-sheldon*.jpg
 *young-sheldon*.png
 *young-sheldon*.webp
