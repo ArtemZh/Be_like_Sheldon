@@ -294,6 +294,18 @@ export const STRINGS = {
     de: '— ganz Deutschland —',
     pl: '— całe Niemcy —',
   },
+  'screen.download': {
+    uk: 'Завантажити заставку для macOS',
+    en: 'Download the macOS screen saver',
+    de: 'Bildschirmschoner für macOS laden',
+    pl: 'Pobierz wygaszacz dla macOS',
+  },
+  'screen.downloadNote': {
+    uk: 'Той самий режим на весь екран, разом із розкладом усередині — мережа не потрібна.',
+    en: 'The same mode full screen, with the timetable inside — no network needed.',
+    de: 'Derselbe Modus im Vollbild, mit dem Fahrplan darin — ohne Netz.',
+    pl: 'Ten sam tryb na pełnym ekranie, z rozkładem w środku — bez sieci.',
+  },
   'screen.states': {
     uk: 'Де зараз рух',
     en: 'Where the movement is',
@@ -448,6 +460,12 @@ export const STRINGS = {
     en: 'Data sources',
     de: 'Datenquellen',
     pl: 'Źródła danych',
+  },
+  'about.saver': {
+    uk: 'Заставка для macOS',
+    en: 'Screen saver for macOS',
+    de: 'Bildschirmschoner für macOS',
+    pl: 'Wygaszacz dla macOS',
   },
   'about.coffee': {
     uk: 'Купити мені каву',

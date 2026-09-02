@@ -1364,6 +1364,31 @@ button:active { transform: scale(0.97); }
   #screen-kinds span { transition: none; }
 }
 
+/* Завантаження заставки: остання позиція у вкладці налаштувань — це не
+   налаштування, а вихід за межі сторінки. */
+#screen-download {
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+#screen-download a {
+  display: block;
+  font-size: 13px;
+  color: var(--signal);
+  text-decoration: none;
+}
+
+#screen-download a:hover { text-decoration: underline; }
+
+#screen-download small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--grey-400);
+}
+
 /* Де зараз рух: назва землі, смуга частки, число. Смуга росте вправо, тож
    три рядки читаються як одна гістограма. */
 #screen-states {
