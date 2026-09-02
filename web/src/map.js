@@ -224,7 +224,7 @@ const TRAIN_EVERY_DEFAULT = 30_000;
 // Показ довший за політ: 0.7 с рамка + 4.2 с зум, решта — щоб роздивитись.
 const TRAIN_SHOWN = 17_000;
 /** Скільки тиші потрібно, щоб демо почало показувати потяги й факти. */
-const IDLE_BEFORE_DEMO = 60_000;
+const IDLE_BEFORE_DEMO = 30_000;
 /** Факт читається довше за розклад потяга. */
 const FACT_SHOWN_DEFAULT = 22_000;
 /** Пауза між показами: карта країни без нічого, щоб табло не мерехтіло. */
@@ -572,6 +572,25 @@ function seeded(seed) {
   };
 }
 
+/**
+ * Кільце біля назви режиму: збігає за час простою й показує, коли почнеться
+ * показ. Інакше пауза виглядає так, ніби скрінсейвер просто нічого не робить.
+ */
+function paintIdleRing() {
+  const ring = el('idle-ring');
+  const show = state.mode === 'screen' && document.documentElement.dataset.chrome !== 'off';
+  ring.hidden = !show;
+  if (!show) return;
+
+  const idle = performance.now() - state.screen.lastInput;
+  const left = Math.max(0, 1 - idle / IDLE_BEFORE_DEMO);
+  const run = ring.querySelector('.idle-run');
+  const circumference = 2 * Math.PI * 8;
+  run.style.strokeDasharray = String(circumference);
+  run.style.strokeDashoffset = String(circumference * (1 - left));
+  ring.classList.toggle('is-done', left === 0);
+}
+
 function trainSpotlight(now, time) {
   // У прискореному режимі камерою керує мандрівка по землях, а не потяг.
   tourStep(now);
@@ -662,6 +681,11 @@ async function goToStep(index) {
   if (step.action === 'demoRoute' && !state.result) {
     demoRoute();
     await pause(900);
+  }
+  // Крок про налаштування має показувати саме їх, а не дашборди.
+  if (step.action === 'showSettings') {
+    selectScreenTab('settings');
+    await pause(200);
   }
 
   const target = document.querySelector(step.target);
@@ -846,6 +870,14 @@ function tourStep(now) {
   return true;
 }
 
+/** Яку вкладку панелі видно: дашборди чи налаштування. */
+function selectScreenTab(name) {
+  el('screen').dataset.tab = name;
+  for (const tab of document.querySelectorAll('#screen-tabs button')) {
+    tab.setAttribute('aria-selected', String(tab.dataset.tab === name));
+  }
+}
+
 /**
  * Сховати панель цілком — лишається сама карта.
  *
@@ -895,6 +927,7 @@ function screenTick(timestamp) {
 
   state.screen.lastTime = time;
   paintClock(time);
+  paintIdleRing();
   refreshStep(timestamp);
   trainSpotlight(timestamp, time);
   screen.frame = requestAnimationFrame(screenTick);
@@ -2672,10 +2705,12 @@ async function initControls() {
     if (event.key === 'ArrowLeft') goToStep(tourAt - 1);
   });
 
-  el('screen-hide-settings').onclick = () => {
-    const hidden = el('screen').classList.toggle('no-settings');
-    el('screen-hide-settings').textContent = t(hidden ? 'screen.showSettings' : 'screen.hideSettings');
-  };
+  // Дашборди й налаштування — дві вкладки, а не блок, який ховається
+  // кнопкою: у панелі без прокрутки все одразу не вміщається.
+  for (const tab of document.querySelectorAll('#screen-tabs button')) {
+    tab.onclick = () => selectScreenTab(tab.dataset.tab);
+  }
+  selectScreenTab('boards');
   el('screen-hide-panel').onclick = () => togglePanel(false);
   el('screen-show-panel').onclick = () => togglePanel(true);
 
@@ -2683,6 +2718,8 @@ async function initControls() {
   for (const [id, key] of [
     ['screen-pause', 'pause'],
     ['screen-refresh', 'refresh'],
+    ['screen-board', 'trainEvery'],
+    ['screen-fact', 'factShown'],
   ]) {
     const input = el(id);
     const output = el(`${id}-value`);

@@ -1450,7 +1450,36 @@ button:active { transform: scale(0.97); }
 
 #screen-tools button:hover { color: var(--signal); border-color: var(--signal); }
 
-#screen.no-settings #screen-settings { display: none; }
+/* Дві вкладки: видно рівно одну. Панель без прокрутки, тож дашборди й
+   налаштування одночасно все одно не вміщаються. */
+#screen[data-tab='boards'] #screen-settings,
+#screen[data-tab='settings'] #screen-boards { display: none; }
+
+#screen-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-sm);
+  background: var(--grey-100);
+}
+
+#screen-tabs button {
+  flex: 1;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: calc(var(--r-sm) - 2px);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--grey-500);
+  cursor: pointer;
+}
+
+#screen-tabs button[aria-selected='true'] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--lift-sm);
+}
 
 :root[data-panel='off'][data-mode='screen'] { --panel-w: 0px; }
 :root[data-panel='off'] #screen { display: none; }
@@ -1926,6 +1955,32 @@ button:active { transform: scale(0.97); }
   #tour-card::before { display: none; }
 }
 
+
+/* Кільце очікування біля назви режиму: збігає за час простою, і видно,
+   коли ввімкнеться показ. */
+#idle-ring {
+  width: 13px;
+  height: 13px;
+  margin-left: 6px;
+  vertical-align: -2px;
+  overflow: visible;
+}
+
+#idle-ring circle {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.idle-track { stroke: var(--grey-200); }
+
+.idle-run {
+  stroke: var(--signal);
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 240ms linear;
+}
+
+#idle-ring.is-done .idle-run { stroke: var(--grey-300); }
 
 /* Кіоск: ?chrome=off лишає дашборди, але прибирає все, що треба натискати —
    у скрінсейвері налаштування задає сама заставка, а не сторінка. */

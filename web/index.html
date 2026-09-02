@@ -78,7 +78,14 @@
     <div id="mode-switch" role="radiogroup" data-i18n-aria="mode.group">
       <button type="button" data-mode="day" role="radio" aria-checked="true" data-i18n="mode.day">Куди доїду</button>
       <button type="button" data-mode="sheldon" role="radio" aria-checked="false" data-i18n="mode.sheldon">Маршрут Шелдона</button>
-      <button type="button" data-mode="screen" role="radio" aria-checked="false" data-i18n="mode.screen">Скрінсейвер</button>
+      <button type="button" data-mode="screen" role="radio" aria-checked="false">
+        <span data-i18n="mode.screen">Скрінсейвер</span>
+        <!-- Кільце збігає за час простою: видно, коли почнеться показ. -->
+        <svg id="idle-ring" viewBox="0 0 20 20" aria-hidden="true" hidden>
+          <circle class="idle-track" cx="10" cy="10" r="8" />
+          <circle class="idle-run" cx="10" cy="10" r="8" />
+        </svg>
+      </button>
     </div>
 
     <!-- Мова й тема — налаштування самого сайту, не режиму. -->
@@ -153,6 +160,7 @@
       <p data-i18n="intro.p1"></p>
       <p data-i18n="intro.p2"></p>
       <p data-i18n="intro.p3"></p>
+      <p data-i18n="intro.p4"></p>
 
       <p class="intro-lead" data-i18n="intro.pick">З чого почнемо?</p>
       <div id="intro-modes">
@@ -191,7 +199,10 @@
          великий годинник. -->
     <aside id="screen" hidden>
       <div id="screen-tools">
-        <button type="button" id="screen-hide-settings" data-i18n="screen.hideSettings">Сховати налаштування</button>
+        <div id="screen-tabs" role="tablist">
+          <button type="button" role="tab" data-tab="boards" aria-selected="true" data-i18n="screen.tabBoards">Дашборди</button>
+          <button type="button" role="tab" data-tab="settings" aria-selected="false" data-i18n="screen.tabSettings">Налаштування</button>
+        </div>
         <button type="button" id="screen-hide-panel" data-i18n="screen.hidePanel">Сховати панель</button>
       </div>
 
@@ -218,10 +229,17 @@
       <label for="screen-refresh"><span data-i18n="screen.refresh">Оновлення віджета</span> · <output id="screen-refresh-value"></output></label>
       <input id="screen-refresh" type="range" min="2" max="120" step="1" value="25" />
 
+      <label for="screen-board"><span data-i18n="screen.board">Зміна на табло</span> · <output id="screen-board-value"></output></label>
+      <input id="screen-board" type="range" min="10" max="120" step="5" value="30" />
+
+      <label for="screen-fact"><span data-i18n="screen.fact">Факт тримається</span> · <output id="screen-fact-value"></output></label>
+      <input id="screen-fact" type="range" min="5" max="90" step="1" value="22" />
+
       <label for="screen-region" data-i18n="screen.region">Моя область</label>
       <select id="screen-region"></select>
       </div>
 
+      <div id="screen-boards">
       <!-- Порядок читається як шлях потяга: приїхав, стоїть, рушає. -->
       <div class="screen-figures">
         <div><span id="screen-left">--</span><small data-i18n="screen.left">щойно приїхали</small></div>
@@ -253,6 +271,7 @@
         <div><dt data-i18n="screen.north">найпівнічніший</dt><dd id="screen-north">--</dd></div>
         <div><dt data-i18n="screen.south">найпівденніший</dt><dd id="screen-south">--</dd></div>
       </dl>
+      </div>
 
     </aside>
 

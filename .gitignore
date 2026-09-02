@@ -18,6 +18,11 @@ web/public/intro.webp
 web/public/sheldon.webp
 photo-*.webp
 photo-*.png
+# Кадри з серіалу під будь-якою назвою: права в студії, у репозиторій вони
+# не йдуть навіть випадково.
+*young-sheldon*.jpg
+*young-sheldon*.png
+*young-sheldon*.webp
 
 .DS_Store
 

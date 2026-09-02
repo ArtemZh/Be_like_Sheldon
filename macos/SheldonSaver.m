@@ -70,6 +70,8 @@ static ScreenSaverDefaults *Settings(void) {
 @property(nonatomic, strong) NSSlider *delayField;
 @property(nonatomic, strong) NSTextField *delayLabel;
 @property(nonatomic, strong) NSButton *syncField;
+@property(nonatomic, strong) NSButton *siteLink;
+@property(nonatomic, strong) NSButton *codeLink;
 @property(nonatomic, strong) NSSlider *pauseField;
 @property(nonatomic, strong) NSTextField *pauseLabel;
 @property(nonatomic, strong) NSSlider *tourField;
@@ -239,6 +241,8 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
       @"macOS nie pozwolił zmienić swojego zegara — wyłącz go w ustawieniach wygaszacza."
     ],
     @"open" : @[ @"Відкрити налаштування", @"Open settings", @"Einstellungen öffnen", @"Otwórz ustawienia" ],
+    @"site" : @[ @"Сайт проєкту", @"Project site", @"Projektseite", @"Strona projektu" ],
+    @"code" : @[ @"Код на GitHub", @"Code on GitHub", @"Code auf GitHub", @"Kod na GitHubie" ],
     @"cancel" : @[ @"Скасувати", @"Cancel", @"Abbrechen", @"Anuluj" ],
     @"save" : @[ @"Зберегти", @"Save", @"Sichern", @"Zapisz" ],
     @"min" : @[ @"хв", @"min", @"Min", @"min" ],
@@ -258,44 +262,44 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
     return self.sheet;
   }
 
-  NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 470, 570)
+  NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 470, 596)
                                                 styleMask:NSWindowStyleMaskTitled
                                                   backing:NSBackingStoreBuffered
                                                     defer:NO];
   NSView *content = sheet.contentView;
   self.texts = [NSMutableDictionary dictionary];
 
-  NSTextField *showGroup = [self groupWithTitle:@"" atY:534];
+  NSTextField *showGroup = [self groupWithTitle:@"" atY:560];
   self.texts[@"show"] = showGroup;
   [content addSubview:showGroup];
 
-  self.langField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 500, 280, 25)];
+  self.langField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 526, 280, 25)];
   [self.langField addItemsWithTitles:SiteLanguageNames()];
   self.langField.target = self;
   self.langField.action = @selector(languageChanged:);
-  [content addSubview:[self labelForKey:@"lang" atY:503]];
+  [content addSubview:[self labelForKey:@"lang" atY:529]];
   [content addSubview:self.langField];
 
-  self.speedField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 465, 280, 25)];
+  self.speedField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 491, 280, 25)];
   [self.speedField addItemsWithTitles:@[ @"Real time", @"Accelerated" ]];
-  [content addSubview:[self labelForKey:@"time" atY:468]];
+  [content addSubview:[self labelForKey:@"time" atY:494]];
   [content addSubview:self.speedField];
 
-  self.minutesField = [self sliderFrom:10 to:60 atY:430];
-  self.minutesLabel = [self valueLabelAtY:430];
-  [content addSubview:[self labelForKey:@"day" atY:433]];
+  self.minutesField = [self sliderFrom:10 to:60 atY:456];
+  self.minutesLabel = [self valueLabelAtY:456];
+  [content addSubview:[self labelForKey:@"day" atY:459]];
   [content addSubview:self.minutesField];
   [content addSubview:self.minutesLabel];
 
-  self.regionField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 395, 280, 25)];
+  self.regionField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 421, 280, 25)];
   [self.regionField addItemWithTitle:@"— all of Germany —"];
   [self.regionField addItemsWithTitles:SiteCapitals()];
-  [content addSubview:[self labelForKey:@"region" atY:398]];
+  [content addSubview:[self labelForKey:@"region" atY:424]];
   [content addSubview:self.regionField];
 
   // Область працює лише у прискореному режимі — кажемо це прямо, щоб не
   // здавалося, що налаштування зламане.
-  NSTextField *hint = [[NSTextField alloc] initWithFrame:NSMakeRect(160, 371, 290, 18)];
+  NSTextField *hint = [[NSTextField alloc] initWithFrame:NSMakeRect(160, 397, 290, 18)];
   self.texts[@"regionHint"] = hint;
   hint.editable = NO;
   hint.bordered = NO;
@@ -304,56 +308,56 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
   hint.textColor = NSColor.secondaryLabelColor;
   [content addSubview:hint];
 
-  NSTextField *rhythmGroup = [self groupWithTitle:@"" atY:335];
+  NSTextField *rhythmGroup = [self groupWithTitle:@"" atY:361];
   self.texts[@"rhythm"] = rhythmGroup;
   [content addSubview:rhythmGroup];
 
-  self.boardField = [self sliderFrom:10 to:120 atY:301];
-  self.boardLabel = [self valueLabelAtY:301];
-  [content addSubview:[self labelForKey:@"board" atY:304]];
+  self.boardField = [self sliderFrom:10 to:120 atY:327];
+  self.boardLabel = [self valueLabelAtY:327];
+  [content addSubview:[self labelForKey:@"board" atY:330]];
   [content addSubview:self.boardField];
   [content addSubview:self.boardLabel];
 
-  self.factField = [self sliderFrom:5 to:90 atY:266];
-  self.factLabel = [self valueLabelAtY:266];
-  [content addSubview:[self labelForKey:@"fact" atY:269]];
+  self.factField = [self sliderFrom:5 to:90 atY:292];
+  self.factLabel = [self valueLabelAtY:292];
+  [content addSubview:[self labelForKey:@"fact" atY:295]];
   [content addSubview:self.factField];
   [content addSubview:self.factLabel];
 
-  self.pauseField = [self sliderFrom:5 to:300 atY:231];
-  self.pauseLabel = [self valueLabelAtY:231];
-  [content addSubview:[self labelForKey:@"pause" atY:234]];
+  self.pauseField = [self sliderFrom:5 to:300 atY:257];
+  self.pauseLabel = [self valueLabelAtY:257];
+  [content addSubview:[self labelForKey:@"pause" atY:260]];
   [content addSubview:self.pauseField];
   [content addSubview:self.pauseLabel];
 
-  self.tourField = [self sliderFrom:10 to:300 atY:196];
-  self.tourLabel = [self valueLabelAtY:196];
-  [content addSubview:[self labelForKey:@"tour" atY:199]];
+  self.tourField = [self sliderFrom:10 to:300 atY:222];
+  self.tourLabel = [self valueLabelAtY:222];
+  [content addSubview:[self labelForKey:@"tour" atY:225]];
   [content addSubview:self.tourField];
   [content addSubview:self.tourLabel];
 
-  self.refreshField = [self sliderFrom:2 to:120 atY:161];
-  self.refreshLabel = [self valueLabelAtY:161];
-  [content addSubview:[self labelForKey:@"refresh" atY:164]];
+  self.refreshField = [self sliderFrom:2 to:120 atY:187];
+  self.refreshLabel = [self valueLabelAtY:187];
+  [content addSubview:[self labelForKey:@"refresh" atY:190]];
   [content addSubview:self.refreshField];
   [content addSubview:self.refreshLabel];
 
-  self.delayField = [self sliderFrom:0 to:120 atY:126];
-  self.delayLabel = [self valueLabelAtY:126];
-  [content addSubview:[self labelForKey:@"delay" atY:129]];
+  self.delayField = [self sliderFrom:0 to:120 atY:152];
+  self.delayLabel = [self valueLabelAtY:152];
+  [content addSubview:[self labelForKey:@"delay" atY:155]];
   [content addSubview:self.delayField];
   [content addSubview:self.delayLabel];
 
   self.syncField = [NSButton checkboxWithTitle:@"" target:nil action:nil];
-  self.syncField.frame = NSMakeRect(160, 94, 300, 20);
+  self.syncField.frame = NSMakeRect(160, 120, 300, 20);
   [content addSubview:self.syncField];
 
   self.clockField = [NSButton checkboxWithTitle:@"" target:nil action:nil];
-  self.clockField.frame = NSMakeRect(160, 58, 300, 20);
+  self.clockField.frame = NSMakeRect(160, 84, 300, 20);
   [content addSubview:self.clockField];
 
   // Місце для правди, якщо система не дасть змінити своє налаштування.
-  self.clockNote = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 300, 34)];
+  self.clockNote = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 46, 300, 30)];
   self.clockNote.editable = NO;
   self.clockNote.bordered = NO;
   self.clockNote.drawsBackground = NO;
@@ -365,14 +369,20 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
   self.clockButton = [NSButton buttonWithTitle:@""
                                         target:self
                                         action:@selector(openScreenSaverSettings:)];
-  self.clockButton.frame = NSMakeRect(325, 22, 120, 28);
+  self.clockButton.frame = NSMakeRect(325, 48, 120, 28);
   self.clockButton.hidden = YES;
   [content addSubview:self.clockButton];
 
+  // Куди подивитись, якщо захочеться подробиць: сайт і код.
+  self.siteLink = [self linkButtonAtX:20 y:20 action:@selector(openSite:)];
+  self.codeLink = [self linkButtonAtX:130 y:20 action:@selector(openCode:)];
+  [content addSubview:self.siteLink];
+  [content addSubview:self.codeLink];
+
   self.cancelButton = [NSButton buttonWithTitle:@"" target:self action:@selector(closeSheet:)];
-  self.cancelButton.frame = NSMakeRect(250, 16, 100, 32);
+  self.cancelButton.frame = NSMakeRect(250, 14, 100, 32);
   self.saveButton = [NSButton buttonWithTitle:@"" target:self action:@selector(saveSheet:)];
-  self.saveButton.frame = NSMakeRect(355, 16, 100, 32);
+  self.saveButton.frame = NSMakeRect(355, 14, 100, 32);
   self.saveButton.keyEquivalent = @"\r";
   [content addSubview:self.cancelButton];
   [content addSubview:self.saveButton];
@@ -411,6 +421,26 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
 }
 
 /** Підпис, який знає свій ключ: при зміні мови ми перепишемо його текст. */
+/** Посилання виглядає як посилання, а не як кнопка: це не дія, а довідка. */
+- (NSButton *)linkButtonAtX:(CGFloat)x y:(CGFloat)y action:(SEL)action {
+  NSButton *button = [NSButton buttonWithTitle:@"" target:self action:action];
+  button.frame = NSMakeRect(x, y, 110, 24);
+  button.bordered = NO;
+  button.contentTintColor = NSColor.linkColor;
+  button.font = [NSFont systemFontOfSize:11];
+  return button;
+}
+
+- (void)openSite:(id)sender {
+  [NSWorkspace.sharedWorkspace
+      openURL:[NSURL URLWithString:@"https://artemzh.github.io/Be_like_Sheldon"]];
+}
+
+- (void)openCode:(id)sender {
+  [NSWorkspace.sharedWorkspace
+      openURL:[NSURL URLWithString:@"https://github.com/ArtemZh/Be_like_Sheldon"]];
+}
+
 - (NSTextField *)labelForKey:(NSString *)key atY:(CGFloat)y {
   NSTextField *label = [self labelWithText:@"" atY:y];
   self.texts[key] = label;
@@ -460,6 +490,8 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
   }
   self.clockField.title = text(@"clock");
   self.syncField.title = text(@"sync");
+  self.siteLink.title = text(@"site");
+  self.codeLink.title = text(@"code");
   self.clockButton.title = text(@"open");
   self.cancelButton.title = text(@"cancel");
   self.saveButton.title = text(@"save");
