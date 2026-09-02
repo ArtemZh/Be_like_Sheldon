@@ -171,6 +171,23 @@
       <button type="button" id="intro-tour" data-i18n="intro.tour">Показати екскурсію</button>
     </div>
 
+    <!-- Про проєкт — окреме вікно від вітального: вітальне вмовляє поїхати,
+         це пояснює, як воно влаштоване, і веде до коду й джерел. -->
+    <div id="about" role="dialog" aria-modal="true" aria-labelledby="about-title" hidden>
+      <h2 id="about-title" data-i18n="about.title">Про проєкт</h2>
+      <p data-i18n="about.what"></p>
+      <p data-i18n="about.how"></p>
+      <p data-i18n="about.data"></p>
+
+      <ul id="about-links">
+        <li><a id="about-code" href="https://github.com/ArtemZh/Be_like_Sheldon" target="_blank" rel="noopener" data-i18n="about.code">Код на GitHub</a></li>
+        <li><button type="button" id="about-sources" data-i18n="about.sources">Джерела даних</button></li>
+        <li><button type="button" id="about-welcome" data-i18n="about.welcome">Вітальне вікно</button></li>
+        <li><a id="about-coffee" href="https://buycoffee.to/artem_pm" target="_blank" rel="noopener" data-i18n="about.coffee">Купити мені каву</a></li>
+      </ul>
+      <button type="button" id="about-close" aria-label="×">×</button>
+    </div>
+
 
     <!-- Підказка живе окремим вікном, а не попапом на марці: попап
          перехоплював би клік, а клік по станції задає новий старт.

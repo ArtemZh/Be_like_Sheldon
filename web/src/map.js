@@ -1646,6 +1646,24 @@ function rememberIntroSeen() {
   }
 }
 
+/**
+ * Про проєкт — окреме вікно від вітального.
+ *
+ * Вітальне вмовляє поїхати, це пояснює, як воно влаштоване, і веде до коду,
+ * джерел і кави. Кнопка «?» відкриває саме його: після першого разу людині
+ * потрібне не запрошення, а довідка.
+ */
+function openAbout() {
+  el('about').hidden = false;
+  el('intro-backdrop').hidden = false;
+  el('about-close').focus();
+}
+
+function closeAbout() {
+  el('about').hidden = true;
+  if (el('intro').hidden) el('intro-backdrop').hidden = true;
+}
+
 function openIntro() {
   el('intro').hidden = false;
   el('intro-backdrop').hidden = false;
@@ -1736,10 +1754,20 @@ function setUpIntro() {
   };
   el('sources-open').onclick = openSources;
   el('sources-close').onclick = closeSources;
-  el('intro-open').onclick = openIntro;
+  el('intro-open').onclick = openAbout;
+  el('about-close').onclick = closeAbout;
+  el('about-sources').onclick = () => {
+    closeAbout();
+    openSources();
+  };
+  el('about-welcome').onclick = () => {
+    closeAbout();
+    openIntro();
+  };
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     if (!el('intro').hidden) closeIntro();
+    if (!el('about').hidden) closeAbout();
     if (!el('sources').hidden) closeSources();
   });
 
