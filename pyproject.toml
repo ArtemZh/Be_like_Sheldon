@@ -7,7 +7,12 @@ dependencies = ["numpy>=2.0"]
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 
+# Сказано явно: інакше setuptools намагається вгадати, що тут пакет, і
+# спотикається об будь-яку нову теку в корені (`web`, `macos`).
+[tool.setuptools]
+packages = ["build"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["slow: потребує реального GTFS-фіду"]
+markers = ["slow: needs a real GTFS feed"]
 addopts = "-m 'not slow'"
