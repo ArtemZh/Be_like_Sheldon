@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "train-web",
+      "name": "train-preview",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--port", "5180"],
-      "port": 5180,
+      "runtimeArgs": ["vite", "preview", "--port", "5188", "--strictPort"],
+      "port": 5188,
       "cwd": "web"
     }
   ]

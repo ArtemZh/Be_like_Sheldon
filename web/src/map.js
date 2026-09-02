@@ -12,6 +12,8 @@ function renderToday(counts) {
 
 }
 
+import { nextFrame, cancelFrame, hidden } from './frames.js';
+import { mirrorFrame } from './mirror.js';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -517,6 +519,45 @@ function paintFact(text) {
 }
 
 /** Раз на 30 секунд просимо у воркера новий потяг чи показуємо факт. */
+/**
+ * Короткий звіт про себе для macOS-скрінсейвера: у веб-в'ю немає ні консолі,
+ * ні налагоджувача, а розібратись, чому екран порожній, якось треба.
+ */
+/**
+ * У скрінсейвері macOS кожен шар сторінки потрапляє на екран лише раз, і
+ * далі картинка застигає, хоч сторінка живе. Найдешевше, що змушує систему
+ * забрати новий кадр, — крихітна зміна розкладки двічі на секунду.
+ */
+let nudge = null;
+
+function nudgeCompositor() {
+  if (!hidden()) return;
+  if (nudge == null) {
+    nudge = document.createElement('div');
+    // `contain: strict` лишає перерахунок усередині цієї крихти, тож поштовх
+    // коштує майже нічого, хоч і трапляється щокадру.
+    nudge.style.cssText =
+      'position:fixed;left:0;bottom:0;width:1px;height:1px;contain:strict;opacity:0.01';
+    document.body.append(nudge);
+  }
+  nudge.style.height = nudge.style.height === '1px' ? '2px' : '1px';
+}
+
+function reportToSaver() {
+  const say = globalThis.webkit?.messageHandlers?.saver;
+  if (!say) return;
+  addEventListener('error', (event) => say.postMessage(`помилка: ${event.message}`));
+  addEventListener('unhandledrejection', (event) =>
+    say.postMessage(`обіцянка: ${event.reason?.message ?? event.reason}`),
+  );
+  setInterval(() => {
+    say.postMessage(
+      `годинник=${el('screen-time').textContent} стоять=${el('screen-standing').textContent} ` +
+        `показ=${state.train.data ? 'потяг' : 'факт'} станцій=${state.screen.lastFeatures ?? '?'}`,
+    );
+  }, 30_000);
+}
+
 function trainSpotlight(now, time) {
   // Прожектор живе тільки у скрінсейвері: у денному режимі табло належить
   // станції під курсором, а карта — порахованому маршруту.
@@ -526,7 +567,10 @@ function trainSpotlight(now, time) {
   // Демо вмикається лише тоді, коли за столом нікого: хвилина без миші,
   // клавіш і рухів карти. Під час екскурсії воно мовчить взагалі.
   if (!el('tour').hidden) return;
-  if (performance.now() - state.screen.lastInput < IDLE_BEFORE_DEMO) return;
+  // У кіоску чекати нема на кого: миші там немає взагалі.
+  if (document.documentElement.dataset.chrome !== 'off') {
+    if (performance.now() - state.screen.lastInput < IDLE_BEFORE_DEMO) return;
+  }
 
   if (now - state.train.at < TRAIN_EVERY) return;
   state.train.at = now;
@@ -631,6 +675,64 @@ function demoRoute() {
 }
 
 /**
+ * Параметри адреси — щоб сторінку можна було відкрити відразу в потрібному
+ * стані: `?mode=screen&chrome=off&panel=off`.
+ *
+ * Це для кіоску й macOS-скрінсейвера, який тримає сторінку у веб-в’ю: там
+ * ніхто не натисне «скрінсейвер» руками й не закриє вікно привітання.
+ */
+function applyUrlOptions() {
+  const options = new URLSearchParams(location.search);
+
+  const mode = options.get('mode');
+  if (['day', 'sheldon', 'screen'].includes(mode)) {
+    rememberIntroSeen();
+    closeIntro();
+    selectMode(mode);
+  }
+  if (options.get('panel') === 'off') togglePanel(false);
+  // Кіоск лишає дашборди — глядачеві вони й цікаві, — але прибирає все, що
+  // треба натискати: налаштування тут задає сам скрінсейвер.
+  if (options.get('chrome') === 'off') document.documentElement.dataset.chrome = 'off';
+
+  applyScreenOptions(options);
+  reportToSaver();
+}
+
+/**
+ * Налаштування скрінсейвера з адреси: у macOS їх задають у вікні заставки, а
+ * сторінка отримує вже готові значення.
+ */
+function applyScreenOptions(options) {
+  const speed = options.get('speed');
+  if (speed === 'fast' || speed === 'real') {
+    state.screen.accelerated = speed === 'fast';
+    for (const button of document.querySelectorAll('#screen-speed button')) {
+      button.setAttribute('aria-checked', String(button.dataset.speed === speed));
+    }
+  }
+
+  const minutes = Number(options.get('minutes'));
+  if (Number.isFinite(minutes) && minutes >= 10 && minutes <= 60) {
+    state.screen.durationMinutes = minutes;
+    el('screen-duration').value = String(minutes);
+  }
+
+  const scope = options.get('scope');
+  if (scope === 'all' || scope === 'view') {
+    state.screen.scope = scope;
+    for (const button of document.querySelectorAll('#screen-scope button')) {
+      button.setAttribute('aria-checked', String(button.dataset.scope === scope));
+    }
+  }
+
+  el('screen-duration').disabled = !state.screen.accelerated;
+  el('screen-duration-value').textContent = t('screen.minutes', {
+    n: state.screen.durationMinutes,
+  });
+}
+
+/**
  * Сховати панель цілком — лишається сама карта.
  *
  * Ширина панелі — та сама змінна, від якої рахуються накладки, тому годинник
@@ -680,7 +782,15 @@ function screenTick(timestamp) {
   state.screen.lastTime = time;
   paintClock(time);
   trainSpotlight(timestamp, time);
-  screen.frame = requestAnimationFrame(screenTick);
+  // Прихована сторінка не отримує кадрів від MapLibre — просимо явно. Копіюємо
+  // при цьому попередній кадр, а не щойно замовлений: наприкінці малювання
+  // верхні шари (крапки станцій, підписи) ще не лягли в буфер.
+  if (hidden()) {
+    mirrorFrame(map.getCanvas());
+    map.redraw();
+    nudgeCompositor();
+  }
+  screen.frame = nextFrame(screenTick);
 }
 
 /**
@@ -778,6 +888,7 @@ function renderLive({ time, stops, phase, value, counts }) {
   }
   if (state.layersReady) {
     map.getSource('live-stops').setData({ type: 'FeatureCollection', features });
+    state.screen.lastFeatures = features.length;
   }
 
   el('screen-standing').textContent = String(counts.standing);
@@ -830,11 +941,11 @@ function startScreen() {
   screen.lastMinute = -1;
   screen.ticker = [];
   el('screen-duration-value').textContent = t('screen.minutes', { n: screen.durationMinutes });
-  if (!screen.frame) screen.frame = requestAnimationFrame(screenTick);
+  if (!screen.frame) screen.frame = nextFrame(screenTick);
 }
 
 function stopScreen() {
-  if (state.screen.frame) cancelAnimationFrame(state.screen.frame);
+  cancelFrame(state.screen.frame);
   state.screen.frame = 0;
   if (state.layersReady) map.getSource('live-stops').setData(EMPTY);
 }
@@ -982,6 +1093,9 @@ const map = new maplibregl.Map({
   style: mapStyle(currentTheme()),
   bounds: GERMANY,
   fitBoundsOptions: { padding: 28 },
+  // Скрінсейвер macOS не показує шар WebGL, тож кадр доводиться копіювати у
+  // звичайне полотно — а для цього WebGL має зберігати намальоване.
+  preserveDrawingBuffer: new URLSearchParams(location.search).get('mode') === 'screen',
 });
 
 // у dev карта доступна з консолі — інакше шари нема чим оглянути
@@ -2238,6 +2352,7 @@ async function initControls() {
     button.onclick = () => selectMode(button.dataset.mode);
   }
   renderStoryPage();
+  applyUrlOptions();
 
   for (const button of document.querySelectorAll('#screen-speed button')) {
     button.onclick = () => {

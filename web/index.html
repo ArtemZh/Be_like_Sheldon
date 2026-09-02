@@ -11,6 +11,19 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/src/style.css" />
+    <script>
+      // Режим ставимо ще до першого кадру: інакше сторінка встигає блимнути
+      // денним виглядом, перш ніж застосунок перемкнеться на скрінсейвер.
+      (() => {
+        const options = new URLSearchParams(location.search);
+        const mode = options.get('mode');
+        if (['day', 'sheldon', 'screen'].includes(mode)) {
+          document.documentElement.dataset.mode = mode;
+        }
+        if (options.get('chrome') === 'off') document.documentElement.dataset.chrome = 'off';
+        if (options.get('panel') === 'off') document.documentElement.dataset.panel = 'off';
+      })();
+    </script>
   </head>
   <body>
     <aside id="panel">

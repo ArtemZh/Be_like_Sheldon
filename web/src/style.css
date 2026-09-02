@@ -1842,3 +1842,23 @@ button:active { transform: scale(0.97); }
 
   #tour-card::before { display: none; }
 }
+
+
+/* Кіоск: ?chrome=off лишає дашборди, але прибирає все, що треба натискати —
+   у скрінсейвері налаштування задає сама заставка, а не сторінка. */
+/* До того, як застосунок прокинеться, денну панель і вікно привітання видно
+   бути не має: у скрінсейвері це блимає на першому кадрі. */
+:root[data-mode='screen'] #panel,
+:root[data-mode='screen'] #intro,
+:root[data-mode='sheldon'] #panel {
+  display: none;
+}
+
+:root[data-chrome='off'] #screen-tools,
+:root[data-chrome='off'] #screen-settings,
+:root[data-chrome='off'] #mode-switch,
+:root[data-chrome='off'] #switches,
+:root[data-chrome='off'] #screen-show-panel,
+:root[data-chrome='off'] #intro-open {
+  display: none;
+}

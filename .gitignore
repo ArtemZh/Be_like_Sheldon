@@ -23,3 +23,6 @@ photo-*.png
 
 # артефакт editable-встановлення
 *.egg-info/
+
+# зібраний бандл скрінсейвера
+macos/build/
