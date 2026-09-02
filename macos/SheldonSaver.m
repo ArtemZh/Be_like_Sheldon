@@ -15,6 +15,7 @@
 #import "Site.h"
 
 static NSString *const kModuleName = @"ua.zhavrotskyi.sheldonsaver";
+static NSString *const kCompanionId = @"ua.zhavrotskyi.sheldonscreen";
 
 // Журнал у файл: NSLog із пісочниці legacyScreenSaver назовні не долітає.
 static void SaverLog(NSString *format, ...) {
@@ -53,9 +54,29 @@ static ScreenSaverDefaults *Settings(void) {
 @property(nonatomic, strong) id<NSObject> activity;
 @property(nonatomic, strong) NSWindow *sheet;
 @property(nonatomic, strong) NSPopUpButton *speedField;
-@property(nonatomic, strong) NSPopUpButton *scopeField;
 @property(nonatomic, strong) NSSlider *minutesField;
 @property(nonatomic, strong) NSTextField *minutesLabel;
+@property(nonatomic, strong) NSMutableDictionary<NSString *, id> *texts;
+@property(nonatomic, strong) NSButton *cancelButton;
+@property(nonatomic, strong) NSButton *saveButton;
+@property(nonatomic, strong) NSPopUpButton *langField;
+@property(nonatomic, strong) NSPopUpButton *regionField;
+@property(nonatomic, strong) NSSlider *boardField;
+@property(nonatomic, strong) NSTextField *boardLabel;
+@property(nonatomic, strong) NSSlider *factField;
+@property(nonatomic, strong) NSTextField *factLabel;
+@property(nonatomic, strong) NSSlider *refreshField;
+@property(nonatomic, strong) NSTextField *refreshLabel;
+@property(nonatomic, strong) NSSlider *delayField;
+@property(nonatomic, strong) NSTextField *delayLabel;
+@property(nonatomic, strong) NSButton *syncField;
+@property(nonatomic, strong) NSSlider *pauseField;
+@property(nonatomic, strong) NSTextField *pauseLabel;
+@property(nonatomic, strong) NSSlider *tourField;
+@property(nonatomic, strong) NSTextField *tourLabel;
+@property(nonatomic, strong) NSButton *clockField;
+@property(nonatomic, strong) NSTextField *clockNote;
+@property(nonatomic, strong) NSButton *clockButton;
 @end
 
 @implementation SheldonSaverView
@@ -97,7 +118,10 @@ static ScreenSaverDefaults *Settings(void) {
       beginActivityWithOptions:NSActivityUserInitiated | NSActivityIdleDisplaySleepDisabled
                         reason:@"screensaver"];
 
-  NSString *address = SiteAddress(kModuleName);
+  // Головний екран — той, що перший у NSScreen.screens (з рядком меню). У
+  // прискореному режимі він тримає обрану землю, а решта мандрують країною.
+  BOOL main = self.window.screen == nil || self.window.screen == NSScreen.screens.firstObject;
+  NSString *address = SiteAddress(kModuleName, main);
   SaverLog(@"вантажу %@", address);
   [web loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:address]]];
 }
@@ -123,6 +147,105 @@ static ScreenSaverDefaults *Settings(void) {
   SaverLog(@"сторінка: %@", message.body);
 }
 
+#pragma mark - Системний годинник заставки
+
+// Великий годинник із датою поверх заставки малює macOS, а не наша сторінка,
+// і живе він у чужому домені (`com.apple.screensaver`, до того ж окремо для
+// кожного хоста). Запис туди з пісочниці може й не пройти, тому після
+// збереження ми перечитуємо значення й показуємо правду.
+static NSString *const kClockDomain = @"com.apple.screensaver";
+static NSString *const kClockKey = @"showClock";
+
+static BOOL SystemClockShown(void) {
+  CFPropertyListRef value = CFPreferencesCopyValue(
+      (__bridge CFStringRef)kClockKey, (__bridge CFStringRef)kClockDomain,
+      kCFPreferencesCurrentUser, kCFPreferencesCurrentHost);
+  BOOL shown = value == nil ? YES : [(__bridge id)value boolValue];
+  if (value != nil) {
+    CFRelease(value);
+  }
+  return shown;
+}
+
+/// Пробує змінити налаштування системи. Повертає те, що вийшло насправді.
+static BOOL SetSystemClockShown(BOOL shown) {
+  CFPreferencesSetValue((__bridge CFStringRef)kClockKey, (__bridge CFNumberRef) @(shown),
+                        (__bridge CFStringRef)kClockDomain, kCFPreferencesCurrentUser,
+                        kCFPreferencesCurrentHost);
+  CFPreferencesSynchronize((__bridge CFStringRef)kClockDomain, kCFPreferencesCurrentUser,
+                           kCFPreferencesCurrentHost);
+  return SystemClockShown();
+}
+
+#pragma mark - Тексти вікна
+
+/**
+ * Підписи вікна «Параметри» чотирма мовами.
+ *
+ * Сторінка бере переклади зі `strings.js`, але вікно тут нативне, і дістати
+ * їх звідти нема як. Тому словник свій; його треба тримати в парі з
+ * `strings.js` руками — рядків небагато, зате вікно говорить тією ж мовою,
+ * що й карта, і міняється одразу, без перезапуску.
+ *
+ * Порядок значень — той самий, що у `SiteLanguages()`: uk, en, de, pl.
+ */
+static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
+  return @{
+    @"show" : @[ @"Що показувати", @"What to show", @"Was anzeigen", @"Co pokazywać" ],
+    @"lang" : @[ @"Мова:", @"Language:", @"Sprache:", @"Język:" ],
+    @"time" : @[ @"Час:", @"Time:", @"Zeit:", @"Czas:" ],
+    @"real" : @[ @"Реальний час", @"Real time", @"Echtzeit", @"Czas rzeczywisty" ],
+    @"fast" : @[ @"Прискорено", @"Accelerated", @"Im Zeitraffer", @"Przyspieszony" ],
+    @"day" : @[ @"Весь день за:", @"Whole day in:", @"Ganzer Tag in:", @"Cały dzień w:" ],
+    @"region" : @[ @"Моя область:", @"My region:", @"Mein Bundesland:", @"Mój region:" ],
+    @"all" : @[
+      @"— уся Німеччина —", @"— all of Germany —", @"— ganz Deutschland —", @"— całe Niemcy —"
+    ],
+    @"regionHint" : @[
+      @"тільки у прискореному режимі; другий екран мандрує країною",
+      @"accelerated mode only; the second screen tours the country",
+      @"nur im Zeitraffer; der zweite Bildschirm reist durchs Land",
+      @"tylko w trybie przyspieszonym; drugi ekran podróżuje po kraju"
+    ],
+    @"rhythm" : @[ @"Ритми", @"Rhythm", @"Rhythmus", @"Rytm" ],
+    @"board" : @[
+      @"Зміна на табло:", @"Board changes every:", @"Anzeige wechselt alle:", @"Zmiana tablicy co:"
+    ],
+    @"fact" : @[ @"Факт тримається:", @"Fact stays for:", @"Fakt bleibt:", @"Fakt trwa:" ],
+    @"pause" : @[
+      @"Пауза між показами:", @"Pause between shows:", @"Pause dazwischen:", @"Przerwa między:"
+    ],
+    @"tour" : @[ @"Мандрівка:", @"Tour step:", @"Reiseschritt:", @"Krok podróży:" ],
+    @"refresh" : @[
+      @"Оновлення віджета:", @"Widget refresh:", @"Widget-Wechsel:", @"Odświeżanie widżetu:"
+    ],
+    @"delay" : @[
+      @"Запізнення 2-го екрана:", @"Second screen delay:", @"Verzögerung 2. Bildschirm:",
+      @"Opóźnienie 2. ekranu:"
+    ],
+    @"sync" : @[
+      @"Однаковий вміст на обох екранах", @"Same content on both screens",
+      @"Gleicher Inhalt auf beiden Bildschirmen", @"Ta sama treść na obu ekranach"
+    ],
+    @"clock" : @[
+      @"Сховати системний годинник і дату", @"Hide the system clock and date",
+      @"Systemuhr und Datum ausblenden", @"Ukryj systemowy zegar i datę"
+    ],
+    @"clockFail" : @[
+      @"Система не дозволила змінити свій годинник — вимкніть його в налаштуваннях заставки.",
+      @"macOS did not allow changing its own clock — turn it off in the screen saver settings.",
+      @"macOS ließ die eigene Uhr nicht ändern — schalten Sie sie in den Bildschirmschoner-"
+      @"Einstellungen aus.",
+      @"macOS nie pozwolił zmienić swojego zegara — wyłącz go w ustawieniach wygaszacza."
+    ],
+    @"open" : @[ @"Відкрити налаштування", @"Open settings", @"Einstellungen öffnen", @"Otwórz ustawienia" ],
+    @"cancel" : @[ @"Скасувати", @"Cancel", @"Abbrechen", @"Anuluj" ],
+    @"save" : @[ @"Зберегти", @"Save", @"Sichern", @"Zapisz" ],
+    @"min" : @[ @"хв", @"min", @"Min", @"min" ],
+    @"sec" : @[ @"с", @"s", @"Sek", @"s" ],
+  };
+}
+
 #pragma mark - Вікно налаштувань
 
 - (BOOL)hasConfigureSheet {
@@ -135,54 +258,167 @@ static ScreenSaverDefaults *Settings(void) {
     return self.sheet;
   }
 
-  NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 210)
+  NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 470, 570)
                                                 styleMask:NSWindowStyleMaskTitled
                                                   backing:NSBackingStoreBuffered
                                                     defer:NO];
   NSView *content = sheet.contentView;
+  self.texts = [NSMutableDictionary dictionary];
 
-  self.speedField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(150, 150, 240, 25)];
-  [self.speedField addItemsWithTitles:@[ @"Реальний час", @"Прискорено" ]];
-  [content addSubview:[self labelWithText:@"Час:" atY:153]];
+  NSTextField *showGroup = [self groupWithTitle:@"" atY:534];
+  self.texts[@"show"] = showGroup;
+  [content addSubview:showGroup];
+
+  self.langField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 500, 280, 25)];
+  [self.langField addItemsWithTitles:SiteLanguageNames()];
+  self.langField.target = self;
+  self.langField.action = @selector(languageChanged:);
+  [content addSubview:[self labelForKey:@"lang" atY:503]];
+  [content addSubview:self.langField];
+
+  self.speedField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 465, 280, 25)];
+  [self.speedField addItemsWithTitles:@[ @"Real time", @"Accelerated" ]];
+  [content addSubview:[self labelForKey:@"time" atY:468]];
   [content addSubview:self.speedField];
 
-  self.scopeField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(150, 115, 240, 25)];
-  [self.scopeField addItemsWithTitles:@[ @"Уся карта", @"Видима частина" ]];
-  [content addSubview:[self labelWithText:@"Показувати:" atY:118]];
-  [content addSubview:self.scopeField];
-
-  self.minutesField = [[NSSlider alloc] initWithFrame:NSMakeRect(150, 80, 190, 25)];
-  self.minutesField.minValue = 10;
-  self.minutesField.maxValue = 60;
-  self.minutesField.numberOfTickMarks = 11;
-  self.minutesField.allowsTickMarkValuesOnly = YES;
-  self.minutesField.target = self;
-  self.minutesField.action = @selector(minutesChanged:);
-  self.minutesLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(345, 83, 60, 20)];
-  self.minutesLabel.editable = NO;
-  self.minutesLabel.bordered = NO;
-  self.minutesLabel.drawsBackground = NO;
-  [content addSubview:[self labelWithText:@"Весь день за:" atY:83]];
+  self.minutesField = [self sliderFrom:10 to:60 atY:430];
+  self.minutesLabel = [self valueLabelAtY:430];
+  [content addSubview:[self labelForKey:@"day" atY:433]];
   [content addSubview:self.minutesField];
   [content addSubview:self.minutesLabel];
 
-  NSButton *cancel = [NSButton buttonWithTitle:@"Скасувати"
+  self.regionField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 395, 280, 25)];
+  [self.regionField addItemWithTitle:@"— all of Germany —"];
+  [self.regionField addItemsWithTitles:SiteCapitals()];
+  [content addSubview:[self labelForKey:@"region" atY:398]];
+  [content addSubview:self.regionField];
+
+  // Область працює лише у прискореному режимі — кажемо це прямо, щоб не
+  // здавалося, що налаштування зламане.
+  NSTextField *hint = [[NSTextField alloc] initWithFrame:NSMakeRect(160, 371, 290, 18)];
+  self.texts[@"regionHint"] = hint;
+  hint.editable = NO;
+  hint.bordered = NO;
+  hint.drawsBackground = NO;
+  hint.font = [NSFont systemFontOfSize:10];
+  hint.textColor = NSColor.secondaryLabelColor;
+  [content addSubview:hint];
+
+  NSTextField *rhythmGroup = [self groupWithTitle:@"" atY:335];
+  self.texts[@"rhythm"] = rhythmGroup;
+  [content addSubview:rhythmGroup];
+
+  self.boardField = [self sliderFrom:10 to:120 atY:301];
+  self.boardLabel = [self valueLabelAtY:301];
+  [content addSubview:[self labelForKey:@"board" atY:304]];
+  [content addSubview:self.boardField];
+  [content addSubview:self.boardLabel];
+
+  self.factField = [self sliderFrom:5 to:90 atY:266];
+  self.factLabel = [self valueLabelAtY:266];
+  [content addSubview:[self labelForKey:@"fact" atY:269]];
+  [content addSubview:self.factField];
+  [content addSubview:self.factLabel];
+
+  self.pauseField = [self sliderFrom:5 to:300 atY:231];
+  self.pauseLabel = [self valueLabelAtY:231];
+  [content addSubview:[self labelForKey:@"pause" atY:234]];
+  [content addSubview:self.pauseField];
+  [content addSubview:self.pauseLabel];
+
+  self.tourField = [self sliderFrom:10 to:300 atY:196];
+  self.tourLabel = [self valueLabelAtY:196];
+  [content addSubview:[self labelForKey:@"tour" atY:199]];
+  [content addSubview:self.tourField];
+  [content addSubview:self.tourLabel];
+
+  self.refreshField = [self sliderFrom:2 to:120 atY:161];
+  self.refreshLabel = [self valueLabelAtY:161];
+  [content addSubview:[self labelForKey:@"refresh" atY:164]];
+  [content addSubview:self.refreshField];
+  [content addSubview:self.refreshLabel];
+
+  self.delayField = [self sliderFrom:0 to:120 atY:126];
+  self.delayLabel = [self valueLabelAtY:126];
+  [content addSubview:[self labelForKey:@"delay" atY:129]];
+  [content addSubview:self.delayField];
+  [content addSubview:self.delayLabel];
+
+  self.syncField = [NSButton checkboxWithTitle:@"" target:nil action:nil];
+  self.syncField.frame = NSMakeRect(160, 94, 300, 20);
+  [content addSubview:self.syncField];
+
+  self.clockField = [NSButton checkboxWithTitle:@"" target:nil action:nil];
+  self.clockField.frame = NSMakeRect(160, 58, 300, 20);
+  [content addSubview:self.clockField];
+
+  // Місце для правди, якщо система не дасть змінити своє налаштування.
+  self.clockNote = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 300, 34)];
+  self.clockNote.editable = NO;
+  self.clockNote.bordered = NO;
+  self.clockNote.drawsBackground = NO;
+  self.clockNote.font = [NSFont systemFontOfSize:11];
+  self.clockNote.textColor = NSColor.secondaryLabelColor;
+  self.clockNote.hidden = YES;
+  [content addSubview:self.clockNote];
+
+  self.clockButton = [NSButton buttonWithTitle:@""
                                         target:self
-                                        action:@selector(closeSheet:)];
-  cancel.frame = NSMakeRect(200, 20, 100, 32);
-  NSButton *save = [NSButton buttonWithTitle:@"Зберегти" target:self action:@selector(saveSheet:)];
-  save.frame = NSMakeRect(305, 20, 100, 32);
-  save.keyEquivalent = @"\r";
-  [content addSubview:cancel];
-  [content addSubview:save];
+                                        action:@selector(openScreenSaverSettings:)];
+  self.clockButton.frame = NSMakeRect(325, 22, 120, 28);
+  self.clockButton.hidden = YES;
+  [content addSubview:self.clockButton];
+
+  self.cancelButton = [NSButton buttonWithTitle:@"" target:self action:@selector(closeSheet:)];
+  self.cancelButton.frame = NSMakeRect(250, 16, 100, 32);
+  self.saveButton = [NSButton buttonWithTitle:@"" target:self action:@selector(saveSheet:)];
+  self.saveButton.frame = NSMakeRect(355, 16, 100, 32);
+  self.saveButton.keyEquivalent = @"\r";
+  [content addSubview:self.cancelButton];
+  [content addSubview:self.saveButton];
 
   self.sheet = sheet;
   [self loadSettings];
   return sheet;
 }
 
+/** Заголовок групи: три групи читаються швидше за десять рядків підряд. */
+- (NSTextField *)groupWithTitle:(NSString *)title atY:(CGFloat)y {
+  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 300, 20)];
+  label.stringValue = title;
+  label.editable = NO;
+  label.bordered = NO;
+  label.drawsBackground = NO;
+  label.font = [NSFont boldSystemFontOfSize:12];
+  return label;
+}
+
+- (NSSlider *)sliderFrom:(double)min to:(double)max atY:(CGFloat)y {
+  NSSlider *slider = [[NSSlider alloc] initWithFrame:NSMakeRect(160, y, 220, 25)];
+  slider.minValue = min;
+  slider.maxValue = max;
+  slider.target = self;
+  slider.action = @selector(slidersChanged:);
+  return slider;
+}
+
+- (NSTextField *)valueLabelAtY:(CGFloat)y {
+  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(388, y + 3, 70, 20)];
+  label.editable = NO;
+  label.bordered = NO;
+  label.drawsBackground = NO;
+  return label;
+}
+
+/** Підпис, який знає свій ключ: при зміні мови ми перепишемо його текст. */
+- (NSTextField *)labelForKey:(NSString *)key atY:(CGFloat)y {
+  NSTextField *label = [self labelWithText:@"" atY:y];
+  self.texts[key] = label;
+  return label;
+}
+
 - (NSTextField *)labelWithText:(NSString *)text atY:(CGFloat)y {
-  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 125, 20)];
+  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(10, y, 145, 20)];
   label.stringValue = text;
   label.editable = NO;
   label.bordered = NO;
@@ -194,23 +430,119 @@ static ScreenSaverDefaults *Settings(void) {
 - (void)loadSettings {
   ScreenSaverDefaults *defaults = Settings();
   [self.speedField selectItemAtIndex:[[defaults stringForKey:@"speed"] isEqualToString:@"fast"]];
-  [self.scopeField selectItemAtIndex:[[defaults stringForKey:@"scope"] isEqualToString:@"view"]];
+  NSInteger lang = [SiteLanguages() indexOfObject:[defaults stringForKey:@"lang"] ?: @"uk"];
+  [self.langField selectItemAtIndex:lang == NSNotFound ? 0 : lang];
+  [self applyLanguage];
   self.minutesField.integerValue = [defaults integerForKey:@"minutes"];
+  self.boardField.integerValue = [defaults integerForKey:@"board"];
+  self.factField.integerValue = [defaults integerForKey:@"fact"];
+  self.pauseField.integerValue = [defaults integerForKey:@"pause"];
+  self.refreshField.integerValue = [defaults integerForKey:@"refresh"];
+  self.delayField.integerValue = [defaults integerForKey:@"delay"];
+  self.syncField.state = [defaults boolForKey:@"sync"] ? NSControlStateValueOn : NSControlStateValueOff;
+  self.tourField.integerValue = [defaults integerForKey:@"tour"];
+  NSString *region = [defaults stringForKey:@"region"] ?: @"";
+  [self.regionField selectItemAtIndex:MAX(0, (NSInteger)[SiteCapitals() indexOfObject:region] + 1)];
+  self.clockField.state = SystemClockShown() ? NSControlStateValueOff : NSControlStateValueOn;
+  self.clockNote.hidden = YES;
+  self.clockButton.hidden = YES;
   [self minutesChanged:nil];
 }
 
+/** Вікно говорить тією ж мовою, що й карта, і міняється одразу. */
+- (void)applyLanguage {
+  NSInteger i = MAX(0, self.langField.indexOfSelectedItem);
+  NSDictionary<NSString *, NSArray<NSString *> *> *texts = SheetTexts();
+  NSString *(^text)(NSString *) = ^(NSString *key) { return texts[key][i]; };
+
+  for (NSString *key in self.texts) {
+    [self.texts[key] setStringValue:text(key)];
+  }
+  self.clockField.title = text(@"clock");
+  self.syncField.title = text(@"sync");
+  self.clockButton.title = text(@"open");
+  self.cancelButton.title = text(@"cancel");
+  self.saveButton.title = text(@"save");
+  self.clockNote.stringValue = text(@"clockFail");
+
+  NSInteger speed = self.speedField.indexOfSelectedItem;
+  [self.speedField removeAllItems];
+  [self.speedField addItemsWithTitles:@[ text(@"real"), text(@"fast") ]];
+  [self.speedField selectItemAtIndex:MAX(0, speed)];
+
+  NSInteger region = self.regionField.indexOfSelectedItem;
+  [self.regionField removeAllItems];
+  [self.regionField addItemWithTitle:text(@"all")];
+  [self.regionField addItemsWithTitles:SiteCapitals()];
+  [self.regionField selectItemAtIndex:MAX(0, region)];
+
+  [self slidersChanged:nil];
+}
+
+- (void)languageChanged:(id)sender {
+  [self applyLanguage];
+}
+
 - (void)minutesChanged:(id)sender {
+  [self slidersChanged:sender];
+}
+
+- (void)slidersChanged:(id)sender {
+  NSInteger i = MAX(0, self.langField.indexOfSelectedItem);
+  NSString *minutes = SheetTexts()[@"min"][i];
+  NSString *seconds = SheetTexts()[@"sec"][i];
+
   self.minutesLabel.stringValue =
-      [NSString stringWithFormat:@"%ld хв", (long)self.minutesField.integerValue];
+      [NSString stringWithFormat:@"%ld %@", (long)self.minutesField.integerValue, minutes];
+  for (NSArray *pair in @[
+         @[ self.boardLabel, self.boardField ], @[ self.factLabel, self.factField ],
+         @[ self.pauseLabel, self.pauseField ], @[ self.tourLabel, self.tourField ],
+         @[ self.refreshLabel, self.refreshField ], @[ self.delayLabel, self.delayField ]
+       ]) {
+    [pair[0] setStringValue:[NSString stringWithFormat:@"%ld %@",
+                                                       (long)[pair[1] integerValue], seconds]];
+  }
 }
 
 - (void)saveSheet:(id)sender {
   ScreenSaverDefaults *defaults = Settings();
   [defaults setObject:self.speedField.indexOfSelectedItem == 1 ? @"fast" : @"real" forKey:@"speed"];
-  [defaults setObject:self.scopeField.indexOfSelectedItem == 1 ? @"view" : @"all" forKey:@"scope"];
+  [defaults setObject:SiteLanguages()[self.langField.indexOfSelectedItem] forKey:@"lang"];
   [defaults setInteger:self.minutesField.integerValue forKey:@"minutes"];
+  [defaults setInteger:self.boardField.integerValue forKey:@"board"];
+  [defaults setInteger:self.factField.integerValue forKey:@"fact"];
+  [defaults setInteger:self.pauseField.integerValue forKey:@"pause"];
+  [defaults setInteger:self.refreshField.integerValue forKey:@"refresh"];
+  [defaults setInteger:self.delayField.integerValue forKey:@"delay"];
+  [defaults setBool:self.syncField.state == NSControlStateValueOn forKey:@"sync"];
+  [defaults setInteger:self.tourField.integerValue forKey:@"tour"];
+  NSInteger region = self.regionField.indexOfSelectedItem - 1;
+  [defaults setObject:region < 0 ? @"" : SiteCapitals()[region] forKey:@"region"];
   [defaults synchronize];
-  [self closeSheet:sender];
+
+  // Якщо карта саме зараз показується окремим застосунком, вона тримає старі
+  // налаштування: перезапускаємо його, щоб не просити про це людину.
+  for (NSRunningApplication *app in
+       [NSRunningApplication runningApplicationsWithBundleIdentifier:kCompanionId]) {
+    [app terminate];
+  }
+
+  BOOL wanted = self.clockField.state == NSControlStateValueOn;
+  BOOL shown = SetSystemClockShown(!wanted);
+  if (shown == !wanted) {
+    [self closeSheet:sender];
+    return;
+  }
+
+  // Не вийшло: кажемо про це прямо й ведемо туди, де перемикач точно є.
+  SaverLog(@"системний годинник змінити не вдалось (лишився %@)", shown ? @"увімкненим" : @"вимкненим");
+  self.clockNote.hidden = NO;
+  self.clockButton.hidden = NO;
+}
+
+- (void)openScreenSaverSettings:(id)sender {
+  [NSWorkspace.sharedWorkspace
+      openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.ScreenSaver-Settings.extension"]];
 }
 
 - (void)closeSheet:(id)sender {

@@ -1,94 +1,98 @@
-# Режим «Скрінсейвер» — план
+# The screen saver mode — plan
 
-Стан: **виконано**. Реалізовано з двома відмінностями від плану: дашборди
-переробили (замість «найгарячіших станцій» і земель — пікова хвилина,
-поїздо-кілометри й стрічка відправлень), а шар живих станцій оновлюється
-раз на секунду розкладу, а не щокадру.
+Status: **done**. Implemented with two differences from the plan: the
+dashboards were reworked (instead of "hottest stations" and states — peak
+minute, train-kilometres and a departures ticker), and the live stations
+layer updates once per timetable second rather than every frame.
 
-## Що це
+## What it is
 
-Третій режим карти: неінтерактивне табло. Карта Німеччини цілком, на ній
-підсвічуються станції, де **зараз стоїть потяг**. Час іде або за годинником
-компʼютера, або прискорено — весь понеділок за 10–60 хвилин.
+The third mode of the map: a non-interactive board. The whole of Germany,
+with stations lighting up where **a train is standing right now**. Time
+either follows the computer's clock or runs accelerated — the whole Monday
+in 10 to 60 minutes.
 
-Кліків і наведень у цьому режимі немає: єдині контроли — перемикач
-«реальний час / прискорено» і повзунок тривалості дня.
+There are no clicks and no hovers in this mode: the only controls are the
+"real time / accelerated" switch and the day-length slider.
 
-## Дані: де взяти «зараз тут стоїть потяг»
+## Data: where "a train is standing here now" comes from
 
-Розклад уже лежить у браузері (`feed.bin`), і RAPTOR його читає. Для табло
-потрібен інший зріз: не «куди доїду», а «що відбувається о 14:37».
+The timetable is already in the browser (`feed.bin`) and RAPTOR reads it.
+The board needs a different slice: not "where can I get" but "what is
+happening at 14:37".
 
-Воркер один раз після завантаження фіду будує **індекс подій по хвилинах**:
+Once the feed is loaded, the worker builds an **index of events by
+minute**:
 
 ```
-для кожного рейсу, для кожної зупинки:
-  подія = (станція, приїзд, відʼїзд)
-розкласти події у 2880 кошиків (доба + нічний зсув), CSR-масивами:
+for every trip, for every stop:
+  event = (station, arrival, departure)
+spread the events across 2880 buckets (a day plus the overnight shift), as CSR arrays:
   minute_ptr: Uint32Array(2881)
-  event_stop:  Uint32Array(усі події)
+  event_stop:  Uint32Array(all events)
 ```
 
-Запит `live(t)` повертає станції, у яких `приїзд <= t <= відʼїзд + вікно`.
-У цьому фіді приїзд і відʼїзд часто збігаються, тому вікно — 60 секунд:
-інакше «стоянка» триває нуль і на карті нічого не блимне.
+A `live(t)` query returns the stations where `arrival <= t <= departure +
+window`. In this feed arrival and departure often coincide, so the window
+is 60 seconds: otherwise a "stop" lasts zero and nothing blinks on the map.
 
-Той самий індекс дає й цифри для дашбордів: скільки рейсів у русі
-(перша зупинка ≤ t ≤ остання), скільки стоїть, скільки станцій уже
-обслужено з початку дня.
+The same index also gives the dashboard figures: how many trips are moving
+(first stop ≤ t ≤ last), how many are standing, how many stations have been
+served since the start of the day.
 
-Оцінка: ~1 млн подій, дві типізовані масиви — кілька мегабайт, будується
-один раз за сотні мілісекунд. Запит на кадр — зріз масиву, без обходу
-рейсів.
+Estimate: ~1M events, two typed arrays — a few megabytes, built once in a
+few hundred milliseconds. A per-frame query is an array slice, with no walk
+over trips.
 
-## Годинник
+## The clock
 
-- **Реальний час**: час доби з `Date`, розклад — понеділковий. Це визнаємо
-  чесно підписом: «розклад понеділка».
-- **Прискорено**: `t = 00:00 + минуло * (86400 / тривалість)`, тривалість
-  від 10 до 60 хвилин повзунком. Після 24:00 цикл починається спочатку.
+- **Real time**: the time of day from `Date`, with a Monday timetable. We
+  admit that honestly with a caption: "Monday timetable".
+- **Accelerated**: `t = 00:00 + elapsed * (86400 / duration)`, the duration
+  set by a slider from 10 to 60 minutes. After 24:00 the cycle starts over.
 
-Обидва режими крутить один rAF-цикл; на кадр — один запит до воркера й один
-`setData`.
+Both modes are driven by one rAF loop; one worker query and one `setData`
+per frame.
 
-## Що на екрані
+## What is on the screen
 
-**Центральне табло** — те саме скляне вікно, що й підказка станції, того ж
-розміру. Всередині великі цифри `ГГ:ХХ` тим самим механічним табло
-(`flap.js`). У прискореному режимі це час симуляції, у реальному — час
-компʼютера.
+**The central board** — the same glass window as the station hint, the same
+size. Inside, large `HH:MM` digits on the same mechanical board
+(`flap.js`). In accelerated mode this is simulation time, in real time the
+computer's clock.
 
-**Карта**: підкладка й колії як є; поверх — шар `live-stops`: кружечок на
-кожній станції, де стоїть потяг. Радіус росте з кількістю потягів на
-станції, яскравість гасне за секунду після відʼїзду — так видно хвилю
-розкладу.
+**The map**: base map and tracks as they are; on top, a `live-stops` layer:
+a circle on every station where a train is standing. The radius grows with
+the number of trains at a station, and the brightness fades a second after
+departure — that is how the wave of the timetable becomes visible.
 
-**Бокова панель** — дашборди, які має сенс дивитись без взаємодії:
+**The side panel** — dashboards worth watching without interaction:
 
-1. **У русі / на зупинках** — два великі числа, оновлюються щокадру.
-2. **Пульс дня** — гістограма відправлень по годинах із позначкою поточної
-   години. Видно ранковий і вечірній пік.
-3. **Найгарячіші станції** — топ-5 за останню годину симуляції.
-4. **Покриття** — скільки станцій із 6761 уже обслужено від початку доби,
-   накопичувальна смуга.
+1. **Moving / standing** — two large numbers, updated every frame.
+2. **Pulse of the day** — a histogram of departures by hour with the
+   current hour marked. The morning and evening peaks are visible.
+3. **Hottest stations** — the top five over the last simulated hour.
+4. **Coverage** — how many of the 6761 stations have been served since the
+   start of the day, as a cumulative bar.
 
-**Налаштування** там же, унизу: перемикач джерела часу й повзунок
-«весь день за 10…60 хв».
+**The settings** sit there too, at the bottom: the time-source switch and
+the "whole day in 10…60 min" slider.
 
-## Кроки реалізації
+## Implementation steps
 
-1. `web/src/live.js` — чисті функції: побудова індексу по хвилинах,
-   `activeAt(index, t)`, мапа «минув час → час симуляції». З тестами.
-2. `worker.js` — будує індекс після `init`, відповідає на `live`.
-3. `map.js` — режим `screen`: шар `live-stops`, rAF-цикл, вимкнені
-   обробники кліку й наведення.
-4. Розмітка й стилі: центральне табло, панель дашбордів.
-5. i18n: підписи українською (переклади — окремим проходом).
+1. `web/src/live.js` — pure functions: building the by-minute index,
+   `activeAt(index, t)`, the "elapsed time → simulation time" mapping. With
+   tests.
+2. `worker.js` — builds the index after `init`, answers `live`.
+3. `map.js` — the `screen` mode: the `live-stops` layer, the rAF loop,
+   click and hover handlers switched off.
+4. Markup and styles: the central board, the dashboard panel.
+5. i18n: labels in Ukrainian (translations in a separate pass).
 
-## Відкриті питання
+## Open questions
 
-- Нічний зсув: події після 24:00 належать вівторковому сервісу. У табло
-  показувати їх як «00:xx наступного дня» чи обрізати добу на 24:00?
-  Пропоную обрізати: це показ одного дня.
-- Чи лишати на карті результат денного режиму, якщо він порахований?
-  Пропоную ні: скрінсейвер — окрема картинка.
+- The overnight shift: events after 24:00 belong to Tuesday's service.
+  Should the board show them as "00:xx of the next day" or cut the day at
+  24:00? I propose cutting: this is one day on show.
+- Should the result of the day mode stay on the map if it has been
+  computed? I propose no: the screen saver is a separate picture.

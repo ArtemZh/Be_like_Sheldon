@@ -1,5 +1,11 @@
 # Day-trip Isochrones Implementation Plan
 
+> **Archived.** This is a design document from the first phase of the
+> project, written in Ukrainian. It describes an architecture that no
+> longer exists (static precomputation for a fixed set of origins); the
+> current one is described in `README.md` and `HANDOFF.md`. Kept for the
+> record only.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Статичний веб-застосунок, що для кожної з ~800 німецьких станцій показує на карті, куди можна з'їздити потягом туди-назад у понеділок (виїзд після 09:00, повернення до 23:00) і скільки корисних годин лишиться на місці.

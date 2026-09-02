@@ -169,10 +169,23 @@
          Вікно не зникає й не порожніє: без наведення в ньому стоїть той
          самий макет із XX замість цифр, а наведення прокручує символи
          до справжніх значень, як на механічному табло. Його можна перетягнути. -->
+    <!-- Одне вікно на всі стани: підказка станції в денному режимі,
+         годинник, табло потяга й факт у скрінсейвері. Що показано —
+         вирішує клас, а не окремі вікна: інакше вони стояли б у різних
+         місцях і стрибали одне відносно одного. -->
     <div id="hint" class="is-empty">
       <p class="hint-name"><span class="flap"></span><span class="flap"></span></p>
       <p class="hint-useful"></p>
       <p class="hint-times"></p>
+      <p class="hint-clock"><span class="flap"></span></p>
+      <div class="hint-board">
+        <p><span class="board-label"></span><span class="board-value"></span></p>
+        <p><span class="board-label"></span><span class="board-value"></span></p>
+        <p><span class="board-label"></span><span class="board-value"></span></p>
+        <p><span class="board-label"></span><span class="board-value"></span></p>
+        <p><span class="board-label"></span><span class="board-value"></span></p>
+      </div>
+      <p class="hint-fact"></p>
     </div>
     <!-- Скрінсейвер: неінтерактивне табло. Ліворуч дашборди, у центрі
          великий годинник. -->
@@ -198,12 +211,22 @@
 
       <label for="screen-duration"><span data-i18n="screen.duration">Весь день за</span> · <output id="screen-duration-value"></output></label>
       <input id="screen-duration" type="range" min="10" max="60" step="5" value="20" disabled />
+
+      <label for="screen-pause"><span data-i18n="screen.pause">Пауза між показами</span> · <output id="screen-pause-value"></output></label>
+      <input id="screen-pause" type="range" min="5" max="300" step="5" value="60" />
+
+      <label for="screen-refresh"><span data-i18n="screen.refresh">Оновлення віджета</span> · <output id="screen-refresh-value"></output></label>
+      <input id="screen-refresh" type="range" min="2" max="120" step="1" value="25" />
+
+      <label for="screen-region" data-i18n="screen.region">Моя область</label>
+      <select id="screen-region"></select>
       </div>
 
+      <!-- Порядок читається як шлях потяга: приїхав, стоїть, рушає. -->
       <div class="screen-figures">
+        <div><span id="screen-left">--</span><small data-i18n="screen.left">щойно приїхали</small></div>
         <div><span id="screen-standing">--</span><small data-i18n="screen.standing">стоять</small></div>
         <div><span id="screen-leaving">--</span><small data-i18n="screen.leaving">рушають за 30 с</small></div>
-        <div><span id="screen-left">--</span><small data-i18n="screen.left">щойно поїхали</small></div>
       </div>
 
       <h2 data-i18n="screen.pulse">Пульс дня</h2>
@@ -218,6 +241,18 @@
 
       <h2 data-i18n="screen.departures">Ось-ось відправляться</h2>
       <ul id="screen-ticker"></ul>
+
+      <h2 data-i18n="screen.states">Де зараз рух</h2>
+      <ul id="screen-states"></ul>
+
+      <h2 data-i18n="screen.kinds">Хто зараз їде</h2>
+      <div id="screen-kinds"></div>
+
+      <h2 data-i18n="screen.edges">Крайні точки</h2>
+      <dl id="screen-edges">
+        <div><dt data-i18n="screen.north">найпівнічніший</dt><dd id="screen-north">--</dd></div>
+        <div><dt data-i18n="screen.south">найпівденніший</dt><dd id="screen-south">--</dd></div>
+      </dl>
 
     </aside>
 
@@ -253,7 +288,6 @@
     </button>
 
     <!-- Годинник скрінсейвера: те саме скло, що й підказка станції. -->
-    <div id="screen-clock" hidden><span id="screen-time"></span></div>
 
     <!-- Маршрут Шелдона: одна довга сторінка. Три картки маршрутів угорі
          перемикають те, що показує карта; далі — сама розповідь. -->

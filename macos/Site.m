@@ -123,15 +123,69 @@ WKWebView *MakeSiteWebView(NSURL *root, NSRect frame) {
   return web;
 }
 
-NSString *SiteAddress(NSString *module) {
+NSArray<NSString *> *SiteLanguages(void) {
+  // Ті самі чотири, що й у вебі (`strings.js`).
+  return @[ @"uk", @"en", @"de", @"pl" ];
+}
+
+NSArray<NSString *> *SiteLanguageNames(void) {
+  return @[ @"Українська", @"English", @"Deutsch", @"Polski" ];
+}
+
+NSArray<NSString *> *SiteCapitals(void) {
+  // Порядок той самий, що й на сторінці (`regions.js`).
+  return @[
+    @"Berlin", @"Bremen", @"Dresden", @"Düsseldorf", @"Erfurt", @"Hamburg", @"Hannover", @"Kiel",
+    @"Magdeburg", @"Mainz", @"München", @"Potsdam", @"Saarbrücken", @"Schwerin", @"Stuttgart",
+    @"Wiesbaden"
+  ];
+}
+
+NSString *SiteAddress(NSString *module, BOOL main) {
   ScreenSaverDefaults *defaults = [ScreenSaverDefaults defaultsForModuleWithName:module];
-  [defaults registerDefaults:@{@"speed" : @"real", @"scope" : @"all", @"minutes" : @20}];
+  // Налаштування міняють у Системних налаштуваннях — це інший процес, і без
+  // synchronize заставка читала б власний кеш, тобто старі значення. Саме
+  // через це доводилось перевстановлювати бандл, щоб побачити зміну.
+  [defaults synchronize];
+  [defaults registerDefaults:@{
+    @"speed" : @"real",
+    @"lang" : @"en",
+    @"minutes" : @20,
+    @"region" : @"",
+    @"board" : @30,
+    @"fact" : @22,
+    @"pause" : @60,
+    @"refresh" : @25,
+    @"delay" : @15,
+    @"sync" : @NO,
+    @"tour" : @45,
+  }];
   NSString *custom = [defaults stringForKey:@"url"];
   if (custom.length > 0) {
     return custom;
   }
-  return [NSString stringWithFormat:@"%@&speed=%@&scope=%@&minutes=%ld", kSitePage,
-                                    [defaults stringForKey:@"speed"],
-                                    [defaults stringForKey:@"scope"],
-                                    (long)[defaults integerForKey:@"minutes"]];
+
+  NSString *region = [defaults stringForKey:@"region"] ?: @"";
+  NSString *address =
+      // Охоплення («уся карта / видима частина») лишилось тільки у вебі: у
+      // заставці видимої частини не буває, її ніхто не прокручує.
+      [NSString stringWithFormat:@"%@&speed=%@&lang=%@&minutes=%ld&board=%ld&fact=%ld&pause=%ld"
+                                 @"&tour=%ld&refresh=%ld&delay=%ld&sync=%@&display=%@",
+                                 kSitePage, [defaults stringForKey:@"speed"],
+                                 [defaults stringForKey:@"lang"],
+                                 (long)[defaults integerForKey:@"minutes"],
+                                 (long)[defaults integerForKey:@"board"],
+                                 (long)[defaults integerForKey:@"fact"],
+                                 (long)[defaults integerForKey:@"pause"],
+                                 (long)[defaults integerForKey:@"tour"],
+                                 (long)[defaults integerForKey:@"refresh"],
+                                 (long)[defaults integerForKey:@"delay"],
+                                 [defaults boolForKey:@"sync"] ? @"on" : @"off",
+                                 main ? @"main" : @"second"];
+  if (region.length > 0) {
+    NSCharacterSet *allowed = NSCharacterSet.URLQueryAllowedCharacterSet;
+    address = [address stringByAppendingFormat:@"&region=%@",
+                                               [region stringByAddingPercentEncodingWithAllowedCharacters:allowed]];
+  }
+  return address;
 }

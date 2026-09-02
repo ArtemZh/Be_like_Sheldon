@@ -150,17 +150,19 @@ export const STRINGS = {
     de: 'Die Verbindungen konnten nicht berechnet werden ({message}).',
     pl: 'Nie udało się policzyć połączeń ({message}).',
   },
+  // Заголовок нейтральний: розклад понеділковий, а дивляться на нього
+  // будь-якого дня тижня — «Понеділок у русі» в середу виглядало дивно.
   'screen.title': {
-    uk: 'Понеділок у русі',
-    en: 'Monday in motion',
-    de: 'Montag in Bewegung',
-    pl: 'Poniedziałek w ruchu',
+    uk: 'Країна в русі',
+    en: 'A country in motion',
+    de: 'Ein Land in Bewegung',
+    pl: 'Kraj w ruchu',
   },
   'screen.lead': {
-    uk: 'Розклад одного понеділка: підсвічені станції — ті, де просто зараз стоїть потяг.',
-    en: 'One Monday timetable: highlighted stations are the ones where a train is standing right now.',
-    de: 'Ein Montagsfahrplan: hervorgehoben sind die Stationen, an denen gerade ein Zug steht.',
-    pl: 'Rozkład jednego poniedziałku: podświetlone stacje to te, na których właśnie stoi pociąg.',
+    uk: 'Підсвічені станції — ті, де просто зараз стоїть потяг.',
+    en: 'Highlighted stations are the ones where a train is standing right now.',
+    de: 'Hervorgehoben sind die Stationen, an denen gerade ein Zug steht.',
+    pl: 'Podświetlone stacje to te, na których właśnie stoi pociąg.',
   },
   'screen.pulse': {
     uk: 'Пульс дня',
@@ -264,23 +266,74 @@ export const STRINGS = {
     de: 'Fahren gleich ab',
     pl: 'Zaraz odjadą',
   },
-  'train.headline': {
-    uk: '{route} · {from} → {to}',
-    en: '{route} · {from} → {to}',
-    de: '{route} · {from} → {to}',
-    pl: '{route} · {from} → {to}',
+  // Табло потяга: підпис ліворуч, значення у фіксованих слотах. Підписи
+  // коротші за 13 символів — саме стільки має колонка.
+  // Назва лінії, коли в даних її немає: у фіді трапляються рейси без номера.
+  'screen.now': { uk: 'потяг', en: 'train', de: 'Zug', pl: 'pociąg' },
+  'screen.pause': {
+    uk: 'Пауза між показами',
+    en: 'Pause between shows',
+    de: 'Pause dazwischen',
+    pl: 'Przerwa między pokazami',
   },
-  'train.departs': {
-    uk: 'Відправляється за 1 хвилину з {station}',
-    en: 'Departs in 1 minute from {station}',
-    de: 'Fährt in 1 Minute ab {station}',
-    pl: 'Odjazd za 1 minutę z {station}',
+  'screen.refresh': {
+    uk: 'Оновлення віджета',
+    en: 'Widget refresh',
+    de: 'Widget-Wechsel',
+    pl: 'Odświeżanie widżetu',
   },
-  'train.progress': {
-    uk: 'Зупинка {n} з {total} · прибуття {arrival}',
-    en: 'Stop {n} of {total} · arrives {arrival}',
-    de: 'Halt {n} von {total} · Ankunft {arrival}',
-    pl: 'Przystanek {n} z {total} · przyjazd {arrival}',
+  'screen.region': {
+    uk: 'Моя область',
+    en: 'My region',
+    de: 'Mein Bundesland',
+    pl: 'Mój region',
+  },
+  'screen.regionAll': {
+    uk: '— уся Німеччина —',
+    en: '— all of Germany —',
+    de: '— ganz Deutschland —',
+    pl: '— całe Niemcy —',
+  },
+  'screen.states': {
+    uk: 'Де зараз рух',
+    en: 'Where the movement is',
+    de: 'Wo gerade Bewegung ist',
+    pl: 'Gdzie teraz ruch',
+  },
+  'screen.kinds': {
+    uk: 'Хто зараз їде',
+    en: 'What is running',
+    de: 'Was gerade fährt',
+    pl: 'Co teraz jedzie',
+  },
+  'screen.kind.S': { uk: 'S-Bahn', en: 'S-Bahn', de: 'S-Bahn', pl: 'S-Bahn' },
+  'screen.kind.RE': { uk: 'RE', en: 'RE', de: 'RE', pl: 'RE' },
+  'screen.kind.RB': { uk: 'RB', en: 'RB', de: 'RB', pl: 'RB' },
+  'screen.kind.other': { uk: 'інші', en: 'other', de: 'andere', pl: 'inne' },
+  'screen.edges': {
+    uk: 'Крайні точки',
+    en: 'Far ends',
+    de: 'Äußerste Punkte',
+    pl: 'Skrajne punkty',
+  },
+  'screen.north': { uk: 'найпівнічніший', en: 'northernmost', de: 'nördlichster', pl: 'najdalej na północ' },
+  'screen.south': { uk: 'найпівденніший', en: 'southernmost', de: 'südlichster', pl: 'najdalej na południe' },
+  'board.line': { uk: 'лінія', en: 'line', de: 'Linie', pl: 'linia' },
+  'board.from': { uk: 'потяг з', en: 'train from', de: 'Zug ab', pl: 'pociąg z' },
+  'board.to': { uk: 'прямує до', en: 'heading to', de: 'Ziel', pl: 'do' },
+  'board.departs': { uk: 'відправлення', en: 'departure', de: 'Abfahrt', pl: 'odjazd' },
+  'board.departsValue': {
+    uk: 'за {min} хв · колія {track}',
+    en: 'in {min} min · track {track}',
+    de: 'in {min} Min · Gleis {track}',
+    pl: 'za {min} min · tor {track}',
+  },
+  'board.stop': { uk: 'зупинка', en: 'stop', de: 'Halt', pl: 'przystanek' },
+  'board.stopValue': {
+    uk: '{n} з {total} · {time}',
+    en: '{n} of {total} · {time}',
+    de: '{n} von {total} · {time}',
+    pl: '{n} z {total} · {time}',
   },
   'screen.settings': {
     uk: 'Плин часу',

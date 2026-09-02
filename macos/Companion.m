@@ -21,9 +21,9 @@ static NSString *const kModuleName = @"ua.zhavrotskyi.sheldonsaver";
 - (void)applicationDidFinishLaunching:(NSNotification *)note {
   self.windows = [NSMutableArray array];
   NSURL *root = SiteRoot(self.class);
-  NSString *address = SiteAddress(kModuleName);
-
   for (NSScreen *screen in NSScreen.screens) {
+    BOOL main = screen == NSScreen.screens.firstObject;
+    NSString *address = SiteAddress(kModuleName, main);
     NSRect frame = screen.frame;
     NSWindow *window = [[NSWindow alloc] initWithContentRect:frame
                                                    styleMask:NSWindowStyleMaskBorderless

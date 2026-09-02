@@ -71,6 +71,23 @@ describe('повнота словників', () => {
     }
   });
 
+  // Найчастіша дірка — не відсутній переклад, а ключ, якого немає взагалі:
+  // t() тоді мовчки показує саму назву ключа, і це помітно лише очима.
+  it('усі ключі з розмітки й коду є у словнику', async () => {
+    const { readFileSync, readdirSync } = await import('node:fs');
+    const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const code = readdirSync(new URL('.', import.meta.url))
+      .filter((name) => name.endsWith('.js') && !name.endsWith('.test.js'))
+      .map((name) => readFileSync(new URL(name, import.meta.url), 'utf8'))
+      .join('\n');
+
+    const used = new Set([
+      ...[...html.matchAll(/data-i18n(?:-aria)?="([\w.]+)"/g)].map((m) => m[1]),
+      ...[...code.matchAll(/\bt\(\s*'([\w.]+)'/g)].map((m) => m[1]),
+    ]);
+    expect([...used].filter((key) => !STRINGS[key])).toEqual([]);
+  });
+
   it('невідомий ключ повертає сам себе, а не порожнечу', () => {
     expect(t('немає.такого')).toBe('немає.такого');
   });

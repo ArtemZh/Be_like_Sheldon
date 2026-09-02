@@ -1,236 +1,268 @@
-# Куди доїду за день — передача проєкту
+# Where can I get in a day — project handover
 
-Стан на 2026-09-02. Гілка `main-deploy`, усе закомічено (останній коміт —
-`f5c3b79`, скрінсейвер macOS як справжня заставка).
+State as of 2026-09-02. Branch `main-deploy`; the screen saver work and the
+board rework are committed.
 
-## Що це
+## What this is
 
-Три застосунки на одній карті Німеччини. Перемикач режимів — ліворуч угорі,
-одразу за панеллю; мова, тема, вибір підкладки й «Джерела» — праворуч.
+Three applications on one map of Germany. The mode switch sits top left,
+right next to the panel; language, theme, base map and "Sources" are on the
+right.
 
-1. **Куди доїду** — клікаєш будь-де, беремо найближчу станцію й показуємо,
-   куди звідти можна з'їздити туди-назад за день.
-2. **Маршрут Шелдона** — розказана карта: поїздка з «Дитинства Шелдона»
-   (7 сезон, 3 серія) трьома маршрутами й шістьма абзацами.
-3. **Скрінсейвер** — неінтерактивне табло: розклад одного понеділка в русі,
-   годинник, дашборди, і раз на 30 секунд або живий потяг із маршрутом, або
-   факт про німецьку залізницю.
+1. **Where can I get** — click anywhere, we take the nearest station and
+   show where you can go there and back in a day.
+2. **Sheldon's route** — a narrated map: the trip from *Young Sheldon*
+   (season 7, episode 3) as three routes and six paragraphs.
+3. **Screen saver** — a non-interactive board: one Monday's timetable in
+   motion, a clock, dashboards, and every half minute either a live train
+   with its route or a fact about German railways.
 
-Ключове рішення першого режиму, з якого виріс проєкт: метрика — не час у
-дорозі, а **корисний час на місці**. Вікно між приїздом і останнім потягом
-назад, мінус година на вокзал, каву й хотдог.
+The key decision behind the first mode, the one the project grew from: the
+metric is not travel time but **useful time on the ground**. The window
+between arriving and the last train back, minus an hour for the station, a
+coffee and a hotdog.
 
-## Як воно працює
+## How it works
 
-Передрахунку відповідей немає. Збірка перетворює GTFS на компактний
-бінарний розклад, браузер вантажить його один раз і рахує RAPTOR у Web
-Worker — 10–40 мс на запит. Тому стартом може бути будь-яка з 7737
-станцій.
+Nothing is precomputed. The build turns GTFS into a compact binary
+timetable, the browser loads it once and runs RAPTOR in a Web Worker —
+10–40 ms per query. That is why the origin can be any of the 7737 stations.
 
 ```
 GTFS zip
-  │  build/  — Python: ingest, вибір сервісних днів, бінарний експорт
+  │  build/  — Python: ingest, service-day selection, binary export
   ▼
-web/public/data/  feed.bin (9.7 МБ) + stations.json + network.json + patterns.json
+web/public/data/  feed.bin (9.7 MB) + stations.json + network.json + patterns.json
   ▼
-web/src/worker.js — RAPTOR, зони, індекс «хто зараз стоїть» у фоновому потоці
+web/src/worker.js — RAPTOR, zones, the "who is standing now" index, off the main thread
   ▼
-web/src/map.js — MapLibre: три режими, власна підкладка, табло
+web/src/map.js — MapLibre: three modes, our own base map, the board
 ```
 
 ### Python (`build/`)
 
-| Модуль | Відповідальність |
+| Module | Responsibility |
 |---|---|
-| `gtfs_ingest.py` | GTFS → `Feed`; фільтр на потяги, зведення платформ, назви ліній |
-| `calendar_pick.py` | які service_id їздять у понеділок і наступного дня |
-| `feed.py` | компактне представлення розкладу, `reversed()` |
-| `raptor.py` | RAPTOR: найраніші приїзди від станції |
-| `daytrip.py` | злиття прямого й зворотного профілів у вікно |
+| `gtfs_ingest.py` | GTFS → `Feed`; trains only, platforms merged, line names |
+| `calendar_pick.py` | which service_ids run on Monday and the next day |
+| `feed.py` | the compact timetable representation, `reversed()` |
+| `raptor.py` | RAPTOR: earliest arrivals from a station |
+| `daytrip.py` | merging the forward and return profiles into a window |
 | `binary_feed.py` | `Feed` → `feed.bin` + `feed.meta.json` |
-| `network.py` | схема мережі: транзитивна редукція, коридорне правило, поріг |
-| `germany.py` | чи станція в Німеччині і в якій землі — по геометрії карти |
-| `origins.py` | станції відправлення: обласні центри плюс найбільші вокзали |
-| `story_paths.py` | лінії маршруту Шелдона по справжніх станціях |
-| `cli.py` | збірка цілком |
+| `network.py` | the network diagram: transitive reduction, corridor rule, threshold |
+| `germany.py` | whether a station is in Germany and in which state, by map geometry |
+| `origins.py` | departure stations: state capitals plus the largest hubs |
+| `story_paths.py` | the lines of Sheldon's route along real stations |
+| `cli.py` | the whole build |
 
-### Фронтенд (`web/src/`)
+### Frontend (`web/src/`)
 
-`raptor.js` і `daytrip.js` — порт пітонівських модулів на типізовані
-масиви. `feed.js` читає бінарний фід. `grid.js` будує зони. `live.js` —
-індекс «що відбувається о 14:37» для скрінсейвера. `metrics.js`,
-`timeline.js`, `flap.js`, `tour.js`, `theme.js` — чиста логіка з тестами.
-`map.js` — єдине місце з DOM і MapLibre. `worker.js` — усе важке.
+`raptor.js` and `daytrip.js` are ports of the Python modules onto typed
+arrays. `feed.js` reads the binary feed. `grid.js` builds the zones.
+`live.js` is the "what is happening at 14:37" index for the screen saver.
+`metrics.js`, `timeline.js`, `flap.js`, `tour.js`, `theme.js`, `names.js`,
+`regions.js` are pure logic with tests. `map.js` is the only place with DOM
+and MapLibre. `worker.js` does the heavy lifting.
 
-Дані, які не залежать від розкладу, лежать модулями: `strings.js` (усі
-тексти, ключ і чотири мови), `facts.js` + `sources.js` (факти й джерела),
-`sheldon.js` (маршрути розповіді), `walk-route.js` і `story-paths.js`
-(геометрія, згенерована один раз).
+Data that does not depend on the timetable lives in modules: `strings.js`
+(all texts, key plus four languages), `facts.js` + `sources.js` (facts and
+sources), `sheldon.js` (the story routes), `walk-route.js` and
+`story-paths.js` (geometry generated once).
 
-## Запуск
+## Running it
 
 ```bash
-# дані вже в репозиторії — достатньо фронтенду
+# the data is already in the repository — the frontend is enough
 cd web && npm install && npm run dev
 
-# перезібрати розклад (потрібен gtfs/db.zip, див. README)
+# rebuild the timetable (needs gtfs/db.zip, see README)
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/python -m build.cli gtfs/db.zip --out web/public/data
 ```
 
-## Перевірка
+## Checks
 
 ```bash
-.venv/bin/pytest              # 58 тестів на фікстурному фіді
-.venv/bin/pytest -m slow      # 2 тести на справжньому, потребує gtfs/db.zip
-cd web && npm test            # 124 тести фронтенду
-node tools/crosscheck.mjs     # звірка JS проти Python на справжньому фіді
+.venv/bin/pytest              # 58 tests on the fixture feed
+.venv/bin/pytest -m slow      # 2 tests on the real one, needs gtfs/db.zip
+cd web && npm test            # 127 frontend tests
+node tools/crosscheck.mjs     # JS against Python on the real feed
 ```
 
-**`crosscheck.mjs` — головний запобіжник.** Порт RAPTOR легко зробити
-«майже правильним»: фікстурні тести проходять, а на країні результати
-розходяться. Скрипт ганяє обидві реалізації на тому самому фіді й вимагає
-нульової розбіжності. Якщо чіпаєте роутинг — запускайте його.
+**`crosscheck.mjs` is the main safeguard.** A RAPTOR port is easy to get
+"almost right": the fixture tests pass while the results diverge across the
+country. The script runs both implementations on the same feed and demands
+zero difference. If you touch routing, run it.
 
-## Рішення, які варто знати перед правками
+## Decisions worth knowing before editing
 
-**Платформи зведені до станцій.** У DELFI-фіді кожна платформа — окрема
-зупинка зі спільним `parent_station`: 16566 рядків на 7737 станцій. Назва
-станції — найчастіша серед платформ, бо батьківський рядок Берліна
-називається «S+U Berlin Hauptbahnhof», а в Гамбурга його немає взагалі.
+**Platforms are merged into stations.** In the DELFI feed every platform is
+a separate stop sharing a `parent_station`: 16566 rows for 7737 stations.
+A station's name is the most frequent one among its platforms, because
+Berlin's parent row is called "S+U Berlin Hauptbahnhof" and Hamburg has no
+parent row at all.
 
-**Пересадка коштує 5 хвилин** штрафу на посадку в RAPTOR — наслідок
-зведення платформ.
+**A transfer costs 5 minutes** of boarding penalty in RAPTOR — a
+consequence of merging platforms.
 
-**Раунди RAPTOR читають лише попередній раунд.** Була помилка: обидві
-реалізації оновлювали спільний масив часів під час раунду, і відповідь
-залежала від порядку обходу патернів. Не «оптимізуйте» це назад.
+**RAPTOR rounds read only the previous round.** There was a bug: both
+implementations updated a shared array of times during a round, and the
+answer depended on the order patterns were visited. Do not "optimise" that
+back.
 
-**Два сервісні дні.** Режим «доба» вимагає вівторкових ранкових потягів.
-Рейс, чий сервіс їздить обидва дні, входить у розклад двічі — це різні
-потяги, не дублювання.
+**Two service days.** The overnight mode needs Tuesday morning trains. A
+trip whose service runs on both days enters the timetable twice — those are
+different trains, not duplicates.
 
-**Зони будує воркер.** Перебудова коштує до 280 мс і в кадр не влазить.
+**Zones are built by the worker.** A rebuild costs up to 280 ms and does
+not fit into a frame.
 
-**Схема мережі чиститься трьома правилами**, і кожне ловить свій випадок:
-транзитивна редукція прибирає хорду, якщо той самий шлях уже намальовано
-коротшими ділянками; коридорне правило прибирає лінію, що проходить повз
-станції, які вона пропускає (понад 4 у смузі 5 км); поріг 100 км ріже
-далекі стрибки, яким у регіональному фіді немає заміни. Разом: 9346 →
-6637 ділянок.
+**The network diagram is cleaned by three rules**, each catching its own
+case: transitive reduction drops a chord when the same path is already
+drawn by shorter segments; the corridor rule drops a line that runs past
+stations it skips (more than 4 within a 5 km band); the 100 km threshold
+cuts long jumps that a regional feed has no replacement for. Together:
+9346 → 6637 segments.
 
-**Поза Німеччиною на карті нічого немає.** `germany.py` позначає станції за
-тією самою геометрією, що малює підкладку; ділянка йде на карту, лише коли
-обидва кінці всередині. **Бінарний фід лишається повним** — розрахунок як
-їздив у Прагу, так і їздить.
+**Nothing outside Germany is on the map.** `germany.py` marks stations by
+the same geometry that draws the base map; a segment reaches the map only
+when both ends are inside. **The binary feed stays complete** — routing to
+Prague works exactly as it did.
 
-**Власна підкладка — не тайли, а один GeoJSON** із 16 земель. Колії й
-станції малює сам застосунок. Друга підкладка (CARTO) лишилась на
-перемикачі, коли потрібен контекст.
+**Our base map is not tiles but one GeoJSON** of 16 states. Tracks and
+stations are drawn by the application. The second base map (CARTO) stayed
+on a switch, for when context is needed.
 
-**Скрінсейвер має власний індекс.** `live.js` розкладає всі зупинки по
-хвилинах доби (CSR-масиви), тому запит «хто зараз стоїть» — це зріз
-масиву, а не обхід рейсів. Події навмисно розмазані по хвилині
-детермінованим зсувом: у GTFS час записаний до хвилини, і без розкиду вся
-країна міняла колір одночасно.
+**The screen saver has its own index.** `live.js` spreads every stop across
+the minutes of the day (CSR arrays), so "who is standing now" is a slice of
+an array rather than a walk over trips. Events are deliberately smeared
+across the minute by a deterministic offset: GTFS records time to the
+minute, and without the jitter the whole country changed colour at once.
 
-**Шар живих станцій оновлюється раз на секунду розкладу, а не щокадру.**
-Перемальовування 1700 крапок 60 разів на секунду з'їдало кожен десятий
-кадр: MapLibre щоразу заново тайлить увесь шар. Після дроселя p99 кадру
-впав із 70 до 18 мс.
+**The live stations layer updates once per timetable second, not per
+frame.** Redrawing 1700 dots 60 times a second ate every tenth frame:
+MapLibre re-tiles the whole layer each time. After the throttle the p99
+frame dropped from 70 to 18 ms.
 
-**Усі тексти — у `strings.js`.** Ключ і чотири мови поруч; тест стежить, що
-в кожного ключа є всі мови й що плейсхолдери в них однакові.
+**All texts live in `strings.js`.** Key and four languages side by side; a
+test watches that every key has all languages, that the placeholders match,
+and that every key used in the markup or the code actually exists — a
+missing key is silently rendered as its own name.
 
-## Скрінсейвер для macOS (`macos/`)
+**Dashboards refresh one widget per cycle.** The panel used to redraw
+whole, once a minute, and nobody noticed the change. Now a single widget is
+repainted in turn: text widgets roll over on the mechanical board
+(`flap.js`), bar widgets grow their width. The first batch of data paints
+everything at once, otherwise half the panel sits empty while each widget
+waits for its turn.
 
-Звичайна заставка `.saver`: той самий сайт у `WKWebView` у вікні заставки.
-Складається з трьох частин:
+## The macOS screen saver (`macos/`)
 
-| Файл | Що робить |
+An ordinary `.saver`: the same site in a `WKWebView` inside the screen
+saver window. Four parts:
+
+| File | What it does |
 |---|---|
-| `Site.h/.m` | віддає сайт із бандла через власну схему `sheldon://` (з `file://` WebKit забороняє fetch і воркери) |
-| `SheldonSaver.m` | сама заставка: веб-в'ю, вікно «Параметри», журнал |
-| `Companion.m` | `Be like Sheldon Screen.app` — та сама карта як звичайний застосунок, для запуску руками |
-| `idle-watch.sh` + `install-agent.sh` | агент launchd, що вмикає застосунок після простою — запасний шлях, якщо системна заставка чомусь не підходить |
+| `Site.h/.m` | serves the site from the bundle over the custom `sheldon://` scheme (with `file://` WebKit forbids fetch and workers) |
+| `SheldonSaver.m` | the saver itself: the web view, the "Options" window, the log |
+| `Companion.m` | `Be like Sheldon Screen.app` — the same map as an ordinary application, for launching by hand |
+| `idle-watch.sh` + `install-agent.sh` | a launchd agent that starts the application after an idle period — the fallback if the system screen saver does not suit |
 
 ```bash
 macos/build.sh
 cp -R "macos/build/Be like Sheldon.saver" ~/Library/Screen\ Savers/ && pkill -f legacyScreenSaver
-open -a ScreenSaverEngine          # запустити заставку зараз
+open -a ScreenSaverEngine          # start the saver now
 ```
 
-`pkill` обов'язковий: система тримає старий бандл у пам'яті і після заміни
-файлів показує його далі. Журнал заставки — `sheldon-saver.log` у
+The `pkill` is mandatory: the system keeps the old bundle in memory and
+goes on showing it after the files are replaced. The saver's log is
+`sheldon-saver.log` in
 `~/Library/Containers/com.apple.ScreenSaver.Engine.legacyScreenSaver/Data/tmp/`;
-`NSLog` із пісочниці назовні не долітає. Сторінка пише туди через
-`webkit.messageHandlers.saver` (`reportToSaver` у `map.js`, раз на 30 с).
+`NSLog` does not escape the sandbox. The page writes there through
+`webkit.messageHandlers.saver` (`reportToSaver` in `map.js`, every 30 s).
 
-**Єдина неочевидна річ — `_setWindowOcclusionDetectionEnabled:NO`.** Із
-Sonoma ScreenSaverEngine тримає в'ю заставки так, що WebKit вважає своє вікно
-перекритим іншими вікнами і присипляє сторінку: `document.hidden` стає
-істиною, rAF глухне після першого кадру, воркери сплять, шари не
-оновлюються. Приватний виклик вимикає цю перевірку; після нього сторінка
-живе як у браузері (`hidden=false`, rAF ~50 к/с, перевірено скріншотами з
-інтервалом). Той самий виклик використовує WebViewScreenSaver
-(`liquidx/webviewscreensaver`).
+**The one non-obvious thing is `_setWindowOcclusionDetectionEnabled:NO`.**
+Since Sonoma, ScreenSaverEngine holds the saver view in such a way that
+WebKit considers its own window occluded by other windows and puts the page
+to sleep: `document.hidden` becomes true, rAF dies after the first frame,
+workers sleep, layers stop updating. The private call turns that check off;
+after it the page lives as it does in a browser (`hidden=false`, rAF at
+~50 fps, verified by screenshots taken at intervals). WebViewScreenSaver
+(`liquidx/webviewscreensaver`) uses the same call.
 
-Історія, щоб не повторювати: до цього рішення тут перепробували підміну rAF
-таймером, копію WebGL-кадру у 2D-полотно, поштовхи композитора, `WKSnapshot`,
-власне вікно поверх, і зрештою компаньйон-застосунок, який запускала тонка
-заставка — а поверх системної заставки macOS вікна інших застосунків не
-показує, тож був чорний екран. Усе це лікувало симптоми одного прапорця й
-після його знаходження видалене (`frames.js`, `mirror.js`,
-`nudgeCompositor`); шукати сліди в `git log` до `f5c3b79`.
+The history, so that nobody repeats it: before that fix we tried replacing
+rAF with a timer, copying the WebGL frame into a 2D canvas, nudging the
+compositor, `WKSnapshot`, an own window on top, and finally a companion
+application launched by a thin saver — and macOS does not show other
+applications' windows above a running screen saver, so that was a black
+screen. All of it treated the symptoms of a single flag, and was deleted
+once the flag was found (`frames.js`, `mirror.js`, `nudgeCompositor`); look
+for the traces in `git log` before `f5c3b79`.
 
-Сторінка знає, що вона в кіоску, з параметрів адреси (`mode`, `chrome`,
-`speed`, `scope`, `minutes`); режим ставить маленький вбудований скрипт у
-`index.html` ще до першого кадру — інакше блимає денний вигляд.
+Settings live in two places and must be kept in step: the saver's
+"Options" window (`SheldonSaver.m`, with its own four-language dictionary —
+native code cannot reach `strings.js`) and the panel in the web version.
+The saver also has the second-screen delay and "same content on both
+screens"; the web version has neither, because there is only one window.
 
-## Дані
+The page knows it is in kiosk mode from the address parameters (`mode`,
+`chrome`, `lang`, `speed`, `minutes`, `board`, `fact`, `pause`, `refresh`,
+`tour`, `delay`, `region`, `sync`, `display`); the mode is set by a small
+inline script in `index.html` before the first frame, otherwise the day
+view flashes.
 
-Фід — gtfs.de (агрегує національний DELFI), ліцензія CC-BY 4.0.
-Зараз зібрано з `rv_free` — **тільки регіональні потяги, без ICE**. Тому
-далекі напрямки бідніші, ніж мали б бути. Повний фід (272 МБ) це виправить
-без змін у коді.
+## Data
 
-**Зібрані дані лежать у репозиторії** — `web/public/data/`, 11.2 МБ,
-знімок на понеділок 2026-08-31. Так сайт і клон працюють без Python, а CI
-лише перевіряє код і будує фронтенд. Розплата: знімок не оновлюється сам,
-і колись його доведеться перезібрати тією ж командою — безкоштовні фіди
-покривають лише найближчі тижні.
+The feed is gtfs.de (which aggregates the national DELFI), licensed
+CC-BY 4.0. It is currently built from `rv_free` — **regional trains only,
+no ICE**. Long-distance directions are therefore poorer than they should
+be. The full feed (272 MB) fixes that without a code change.
 
-Межі земель (`web/public/geo/`) закомічені з тієї ж причини, але вони
-взагалі не залежать від розкладу.
+**The built data is in the repository** — `web/public/data/`, 11.2 MB, a
+snapshot of Monday 2026-08-31. That way the site and a fresh clone work
+without Python, and CI only checks the code and builds the frontend. The
+price: the snapshot does not refresh itself, and one day it will have to be
+rebuilt with the same command — free feeds only cover the coming weeks.
 
-## Відоме незроблене
+The state borders (`web/public/geo/`) are committed for the same reason,
+but they do not depend on the timetable at all.
 
-- **Дані застигли на 2026-08-31.** Це навмисно (див. вище), але коли
-  розклад протухне, сайт мовчки показуватиме старий понеділок — це видно
-  лише за датою у `stations.json`.
-- **`walk-route.js` будується вручну.** Пішохідний маршрут Вайнгайм —
-  Гейдельберг прокладено один раз через OSRM і збережено в код; команда є
-  в README. Решта геометрії тепер генерується збіркою.
-- **Мобільна верстка щойно з'явилась** і перевірена лише на 375 px: карта
-  зверху, панель під нею, перемикачі внизу. На планшетах не дивився.
-- **Кадрів із серіалу в репозиторії немає** — `web/public/intro.webp` і
-  `sheldon.webp` у `.gitignore`: права на серіал належать студії. Код
-  переживає їхню відсутність (картинка просто зникає), у вікні «Джерела»
-  це сказано прямо. Локальні копії лежать поруч.
-- Спека `docs/superpowers/specs/` описує архітектуру, якої вже немає
-  (статичний передрахунок).
-- **У режимі `screen` картка факту/потяга перекриває дату над годинником**
-  (видно на 1920×1080). Верстка, не логіка.
-- **Компаньйон і агент простою** дублюють заставку; якщо `.saver` виявиться
-  надійним на інших Mac, їх можна прибрати разом із `install-agent.sh`.
-- **Прапорець приватний.** Якщо Apple його прибере, заставка знову застигне —
-  журнал це покаже (`hidden=true` у звітах сторінки, якщо повернути зонд).
+## Known gaps
 
+- **The data is frozen at 2026-08-31.** That is deliberate (see above), but
+  when the timetable goes stale the site will quietly show an old Monday —
+  visible only from the date in `stations.json`.
+- **`walk-route.js` is built by hand.** The Weinheim — Heidelberg walking
+  route was routed once through OSRM and saved into the code; the command
+  is in the README. The rest of the geometry is generated by the build.
+- **The mobile layout is new** and has only been checked at 375 px: map on
+  top, panel below, switches at the bottom. Tablets were never looked at.
+- **The frames from the series are not in the repository** —
+  `web/public/intro.webp` and `sheldon.webp` are in `.gitignore`: the
+  studio owns the rights. The code survives their absence (the picture
+  simply disappears), and the "Sources" window says so plainly. Local
+  copies sit next to the code.
+- The spec in `docs/superpowers/specs/` describes an architecture that no
+  longer exists (static precomputation).
+- **The platform number on the train board is invented** — 1 to 4, derived
+  from the trip id so that it stays put during the animation. The feed has
+  no platform: they were merged into stations at build time. Nothing claims
+  it is real, but nothing says it is not either.
+- **The companion and the idle agent** duplicate the saver; if the `.saver`
+  proves reliable on other Macs, they can go along with
+  `install-agent.sh`.
+- **The flag is private.** If Apple removes it, the saver will freeze again
+  — the log will show it (`hidden=true` in the page reports, if the probe
+  is put back).
+- **The tour across states has only been seen on one screen.** With two
+  screens the second one is supposed to travel while the main one holds the
+  chosen state; nobody has watched that yet.
 
-## Що можна зробити далі
+## What to do next
 
-Повний фід з ICE — найдешевша зміна з найбільшим ефектом. Далі: довільний
-час виїзду замість зашитих 09:00 (воркер уже приймає це параметром),
-переклади станційних назв там, де вони технічні (`Wernigerode Brm_Bro 004
-P4`), і `feature-state` замість перебудови GeoJSON, якщо скрінсейвер
-почне гальмувати на слабких машинах.
+The full feed with ICE is the cheapest change with the biggest effect.
+After that: an arbitrary departure time instead of the hardcoded 09:00 (the
+worker already takes it as a parameter), translations of station names
+where they are technical (`Wernigerode Brm_Bro 004 P4`), and
+`feature-state` instead of rebuilding GeoJSON, should the screen saver
+start to lag on weaker machines.

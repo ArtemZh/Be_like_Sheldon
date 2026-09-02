@@ -19,6 +19,7 @@ import {
   peakMinute,
   randomTrain,
   statesAt,
+  kindsAt,
 } from './live.js';
 
 let feed = null;
@@ -26,6 +27,18 @@ let reversed = null;
 let lastResult = null;
 let coords = null; // { lat: Float32Array, lon: Float32Array } за індексом станції
 let live = null; // індекс «хвилина -> зайняті станції» для скрінсейвера
+let routes = null; // назви ліній: потрібні лише для розподілу «хто зараз їде»
+
+/** Той самий генератор, що й на сторінці: одне зерно — та сама послідовність. */
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 let kilometres = null; // накопичені поїздо-кілометри по хвилинах доби
 
 /** Станції, придатні для зони на заданий момент часу. */
@@ -60,6 +73,11 @@ self.onmessage = async (event) => {
 
   // Скрінсейвер питає стан мережі щокадру, тому індекс будуємо один раз і
   // ліниво: денному режиму він не потрібен взагалі.
+  if (message.type === 'routes') {
+    routes = message.routes;
+    return;
+  }
+
   if (message.type === 'live') {
     if (!feed) return;
     if (!live) {
@@ -115,6 +133,7 @@ self.onmessage = async (event) => {
           // рушають потяги
           km: kilometres ? kilometres[Math.floor(message.time / 60)] : null,
           departuresThisMinute: live.departures[Math.floor((message.time % 86400) / 60)],
+          kinds: routes ? kindsAt(live, message.time, routes) : null,
         },
       },
       [stops.buffer, phase.buffer, value.buffer],
@@ -136,7 +155,10 @@ self.onmessage = async (event) => {
             coords.lat[stop] >= box[0][1] &&
             coords.lat[stop] <= box[1][1]
         : null;
-    const train = randomTrain(feed, message.time, { inside });
+    // Зерно приходить, коли обидва екрани мають показати один і той самий
+    // потяг: без нього кожен обрав би свій.
+    const rand = message.seed === null || message.seed === undefined ? undefined : seeded(message.seed);
+    const train = randomTrain(feed, message.time, { inside, ...(rand ? { rand } : {}) });
     self.postMessage({ type: 'train', time: message.time, train });
     return;
   }

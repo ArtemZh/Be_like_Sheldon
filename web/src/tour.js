@@ -12,7 +12,7 @@ export const STEPS = [
   { id: 'timeline', mode: 'day', target: '#timeline' },
   { id: 'routes', mode: 'sheldon', target: '#story-routes' },
   { id: 'sections', mode: 'sheldon', target: '#story-sections' },
-  { id: 'board', mode: 'screen', target: '#screen-clock' },
+  { id: 'board', mode: 'screen', target: '#hint' },
   { id: 'dots', mode: 'screen', target: '.screen-figures' },
   { id: 'settings', mode: 'screen', target: '#screen-settings' },
 ];

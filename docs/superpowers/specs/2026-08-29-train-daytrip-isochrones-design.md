@@ -1,5 +1,11 @@
 # Day-trip ізохрони по Німеччині — дизайн
 
+> **Archived.** This is a design document from the first phase of the
+> project, written in Ukrainian. It describes an architecture that no
+> longer exists (static precomputation for a fixed set of origins); the
+> current one is described in `README.md` and `HANDOFF.md`. Kept for the
+> record only.
+
 Дата: 2026-08-29
 Статус: **застарілий у частині архітектури** — див. врізку нижче
 

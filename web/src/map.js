@@ -1,17 +1,5 @@
-/**
- * Підсумки доби: скільки країна проїхала, як часто рушають потяги і скільки
- * станцій сьогодні ще нікого не бачили.
- */
-function renderToday(counts) {
-  if (counts.km !== null && counts.km !== undefined) {
-    el('screen-km').textContent = Math.round(counts.km).toLocaleString('uk-UA');
-  }
-  // Скільки потягів рушає цієї хвилини. Раніше тут був інтервал у секундах,
-  // але «раз на 0.1 с» читається як помилка, хоч і правда.
-  el('screen-rate').textContent = String(counts.departuresThisMinute ?? 0);
-
-}
-
+import { readableName } from './names.js';
+import { CAPITALS, nextStop, stateBounds, stateOfCapital } from './regions.js';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -45,6 +33,7 @@ import { EXPIRED, LIVE, liveProfile, phaseAt, profileOutline, profilePath } from
 import { DEPART_AFTER, RETURN_BY, RETURN_BY_NEXT_MORNING } from './daytrip.js';
 
 const DATA = `${import.meta.env.BASE_URL}data`;
+const GEO = `${import.meta.env.BASE_URL}geo`;
 // Секвенційна шкала: один тон бренду, світло -> темно.
 //
 // Величину кодує лише колір, тому рампа темніша за брендовий сигнал:
@@ -231,13 +220,41 @@ function clearStoryLayers() {
 }
 
 /** Кожні 30 секунд реального часу показуємо новий потяг. */
-const TRAIN_EVERY = 30_000;
+const TRAIN_EVERY_DEFAULT = 30_000;
 // Показ довший за політ: 0.7 с рамка + 4.2 с зум, решта — щоб роздивитись.
 const TRAIN_SHOWN = 17_000;
 /** Скільки тиші потрібно, щоб демо почало показувати потяги й факти. */
 const IDLE_BEFORE_DEMO = 60_000;
 /** Факт читається довше за розклад потяга. */
-const FACT_SHOWN = 22_000;
+const FACT_SHOWN_DEFAULT = 22_000;
+/** Пауза між показами: карта країни без нічого, щоб табло не мерехтіло. */
+const PAUSE_DEFAULT = 60_000;
+/** Як часто оновлюється один віджет панелі. */
+const REFRESH_DEFAULT = 25_000;
+/** Мандрівка другого екрана: як часто він переїжджає до іншої землі. */
+const TOUR_EVERY_DEFAULT = 45_000;
+
+/** Довші назви в табло не влазять: 99% станцій коротші за цю межу. */
+const NAME_FITS = 37;
+
+function boardName(name) {
+  const clean = readableName(name);
+  return clean.length <= NAME_FITS ? clean : `${clean.slice(0, NAME_FITS - 1)}…`;
+}
+
+/** Скільки хвилин лишилось до відправлення — рахуємо, а не пишемо «за 1». */
+function minutesTo(departure, now) {
+  return String(Math.max(0, Math.round((departure - now) / 60)));
+}
+
+/**
+ * Платформи в даних немає: на збірці всі платформи зведені до станцій. Номер
+ * вигадуємо, але сталий для рейсу — інакше цифра стрибала б щокадру просто
+ * під час анімації. Ніде не кажемо, що він справжній.
+ */
+function platformOf(train) {
+  return String(1 + ((train.trip ?? train.pattern ?? 0) % 4));
+}
 
 /**
  * Один випадковий потяг у дорозі: підпис на табло й маршрут на карті.
@@ -249,33 +266,31 @@ function showTrain(train, time) {
   if (!train || !state.byIndex.length) {
     // вночі буває, що в цю хвилину ніхто нікуди не рушає — спитаємо знову
     // за три секунди, а не за пів хвилини
-    state.train.at = performance.now() - TRAIN_EVERY + 3000;
+    state.train.at = performance.now() - state.screen.trainEvery + 3000;
     return;
   }
   state.train.data = train;
-  state.train.until = performance.now() + TRAIN_SHOWN;
+  state.train.until = performance.now() + Math.min(TRAIN_SHOWN, state.screen.trainEvery - 3000);
 
   const stations = train.stops.map((stop) => state.byIndex[stop]).filter(Boolean);
   if (stations.length < 2) return;
   const at = Math.min(train.at, stations.length - 1);
 
   const route = state.patterns?.routes?.[train.pattern] || t('screen.now');
-  const line = [
-    t('train.headline', {
-      route,
-      from: stations[0].name,
-      to: stations[stations.length - 1].name,
-    }),
-    t('train.departs', { station: stations[at].name }),
-    t('train.progress', {
-      n: at + 1,
-      total: stations.length,
-      arrival: clockTime(train.arr[stations.length - 1]),
-    }),
-  ];
-
-  // Те саме табло, що й підказка станції: три рядки, механічна прокрутка.
-  paintBoard(line);
+  const departure = train.dep[at];
+  paintBoard([
+    [t('board.line'), route],
+    [t('board.from'), boardName(stations[0].name)],
+    [t('board.to'), boardName(stations[stations.length - 1].name)],
+    [
+      t('board.departs'),
+      t('board.departsValue', { min: minutesTo(departure, time), track: platformOf(train) }),
+    ],
+    [
+      t('board.stop'),
+      t('board.stopValue', { n: at + 1, total: stations.length, time: clockTime(departure) }),
+    ],
+  ]);
   handoffToBoard();
 
   const coords = (from, to) =>
@@ -319,7 +334,7 @@ function showTrain(train, time) {
   }
   // У режимі «видима частина» камера лишається там, куди її поставила
   // людина: вона щойно сама вибрала, на що дивитись.
-  const stay = state.screen.scope === 'view';
+  const stay = state.screen.scope === 'view' || touring();
   const flight = blinkFrame(stay ? 2 : 3, 320);
   setTimeout(() => {
     if (!state.train.data) return;
@@ -370,6 +385,9 @@ function frameGeojson([[minLon, minLat], [maxLon, maxLat]]) {
 /** Прибрати потяг із карти й повернути звичайний вигляд табло. */
 function hideTrain() {
   state.train.data = null;
+  // Далі — тиша на загальній карті: без неї табло мерехтить одразу новим
+  // потягом чи фактом, і подивитись на саму країну ніколи.
+  state.screen.quietUntil = performance.now() + state.screen.pause;
   el('hint').classList.remove('is-fact', 'is-live');
   handoffToClock();
   if (state.layersReady) {
@@ -380,7 +398,7 @@ function hideTrain() {
   // Назад летимо не «щоб усе влізло»: країна може підрізатись по краях,
   // зате масштаб лишається читабельним. У режимі «видима частина» не
   // повертаємось нікуди: людина лишила карту там, де хотіла.
-  if (state.mode === 'screen' && state.screen.scope === 'all') {
+  if (state.mode === 'screen' && state.screen.scope === 'all' && !touring()) {
     map.easeTo({ center: GERMANY_CENTER, zoom: 5.9, duration: 3200, essential: true });
   }
   else clearHint();
@@ -395,19 +413,19 @@ function hideTrain() {
  */
 function paintBoard(lines) {
   const hint = el('hint');
-  hint.classList.remove('is-empty', 'is-fact');
+  hint.classList.remove('is-empty', 'is-fact', 'is-clock');
   hint.classList.add('is-live');
 
-  for (const [selector, text] of [
-    ['.hint-name', lines[0]],
-    ['.hint-useful', lines[1]],
-    ['.hint-times', lines[2]],
-  ]) {
-    const node = hint.querySelector(selector);
-    node.dataset.template = '';
-    keepOneSlot(node);
-    flapText(node.querySelector('.flap'), text);
-  }
+  const rows = hint.querySelectorAll('.hint-board p');
+  lines.forEach(([label, value], i) => {
+    const row = rows[i];
+    if (!row) return;
+    // Підпис нерухомий, крутиться лише значення.
+    row.querySelector('.board-label').textContent = label;
+    const slot = row.querySelector('.board-value');
+    keepOneSlot(slot);
+    flapText(slot.querySelector('.flap'), value);
+  });
 }
 
 /** Лишити у вузлі рівно один слот під прокрутку. */
@@ -436,7 +454,7 @@ function showFact(fact) {
     }
   }
   state.train.data = { fact: true };
-  state.train.until = performance.now() + FACT_SHOWN;
+  state.train.until = performance.now() + state.screen.factShown;
 
   paintFact(t(fact.id));
   handoffToBoard();
@@ -480,6 +498,7 @@ function showFact(fact) {
   const flight = blinkFrame(2, 320);
   setTimeout(() => {
     if (!state.train.data) return;
+    if (touring()) return;
     map.fitBounds(bounds, { padding: 90, duration: 4200, maxZoom: 9, essential: true });
     setTimeout(() => {
       if (state.layersReady) map.getSource('train-frame').setData(EMPTY);
@@ -501,19 +520,16 @@ function findStation(name) {
  */
 function paintFact(text) {
   const hint = el('hint');
-  hint.classList.remove('is-empty', 'is-live');
+  hint.classList.remove('is-empty', 'is-live', 'is-clock');
   hint.classList.add('is-fact');
 
-  const name = hint.querySelector('.hint-name');
-  name.dataset.template = '';
-  keepOneSlot(name);
-  name.querySelector('.flap').textContent = text;
-
-  for (const selector of ['.hint-useful', '.hint-times']) {
-    const node = hint.querySelector(selector);
-    node.dataset.template = '';
-    node.textContent = '';
-  }
+  // Побуквеної прокрутки тут немає навмисно: абзац, що набивається по літері,
+  // читати неможливо. Замість неї — коротка поява, яку робить CSS.
+  const node = hint.querySelector('.hint-fact');
+  node.textContent = text;
+  node.style.animation = 'none';
+  void node.offsetWidth;
+  node.style.animation = '';
 }
 
 /** Раз на 30 секунд просимо у воркера новий потяг чи показуємо факт. */
@@ -530,13 +546,43 @@ function reportToSaver() {
   );
   setInterval(() => {
     say.postMessage(
-      `годинник=${el('screen-time').textContent} стоять=${el('screen-standing').textContent} ` +
+      `годинник=${el('hint').querySelector('.hint-clock .flap').textContent} стоять=${el('screen-standing').textContent} ` +
         `показ=${state.train.data ? 'потяг' : 'факт'} станцій=${state.screen.lastFeatures ?? '?'}`,
     );
   }, 30_000);
 }
 
+/**
+ * Зерно поточного циклу: обидва екрани рахують з нього те саме, тому
+ * показують один потяг і той самий факт, ніяк не спілкуючись між собою.
+ */
+function cycleSeed() {
+  const cycle = Math.max(5000, state.screen.trainEvery + state.screen.pause);
+  return Math.floor(Date.now() / cycle);
+}
+
+/** Детермінований генератор: те саме зерно — та сама послідовність. */
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function trainSpotlight(now, time) {
+  // У прискореному режимі камерою керує мандрівка по землях, а не потяг.
+  tourStep(now);
+
+  // Там же немає ні потягів, ні фактів: доба летить за двадцять хвилин, і
+  // читати про рейс, який уже давно приїхав, нема сенсу. Лишається годинник.
+  if (state.screen.accelerated) {
+    if (state.train.data) hideTrain();
+    return;
+  }
+
   // Прожектор живе тільки у скрінсейвері: у денному режимі табло належить
   // станції під курсором, а карта — порахованому маршруту.
   if (state.mode !== 'screen') return;
@@ -550,16 +596,22 @@ function trainSpotlight(now, time) {
     if (performance.now() - state.screen.lastInput < IDLE_BEFORE_DEMO) return;
   }
 
-  if (now - state.train.at < TRAIN_EVERY) return;
+  // Другий екран починає пізніше: інакше обидва спалахують табло водночас.
+  if (now - state.screen.startedAt < state.screen.startDelay) return;
+  if (performance.now() < state.screen.quietUntil) return;
+  if (now - state.train.at < state.screen.trainEvery) return;
   state.train.at = now;
 
-  // Половина показів — факт, половина — живий потяг.
-  if (Math.random() < 0.5) {
-    showFact(randomFact());
+  // Половина показів — факт, половина — живий потяг. Коли екрани мають
+  // показувати одне й те саме, кидаємо не монетку, а спільне зерно.
+  const rand = state.screen.sync ? seeded(cycleSeed()) : Math.random;
+  if (rand() < 0.5) {
+    showFact(randomFact(rand));
     return;
   }
 
   worker.postMessage({
+    seed: state.screen.sync ? cycleSeed() : null,
     type: 'train',
     time: Math.floor(time),
     bounds: state.screen.scope === 'view' ? viewportBounds() : null,
@@ -682,6 +734,11 @@ function applyUrlOptions() {
  * сторінка отримує вже готові значення.
  */
 function applyScreenOptions(options) {
+  // Мова: у вебі її обирають перемикачем і памʼятає localStorage, у заставці
+  // — у вікні «Параметри», звідки вона приходить адресою.
+  const lang = options.get('lang');
+  if (lang && LANGUAGES.includes(lang)) selectLanguage(lang);
+
   const speed = options.get('speed');
   if (speed === 'fast' || speed === 'real') {
     state.screen.accelerated = speed === 'fast';
@@ -704,10 +761,89 @@ function applyScreenOptions(options) {
     }
   }
 
+  // Ритми: у секундах, бо так їх задають у налаштуваннях заставки.
+  for (const [key, name, min, max] of [
+    ['trainEvery', 'board', 10, 120],
+    ['factShown', 'fact', 5, 90],
+    ['pause', 'pause', 5, 300],
+    ['tourEvery', 'tour', 10, 300],
+    ['refresh', 'refresh', 2, 300],
+    ['startDelay', 'delay', 0, 120],
+  ]) {
+    const seconds = Number(options.get(name));
+    if (Number.isFinite(seconds) && seconds >= min && seconds <= max) {
+      state.screen[key] = seconds * 1000;
+    }
+  }
+
+  // Своя земля й роль екрана — працюють лише у прискореному режимі.
+  const region = options.get('region');
+  if (region) state.screen.region = stateOfCapital(region) ?? region;
+  const display = options.get('display');
+  if (display === 'main' || display === 'second') state.screen.display = display;
+  state.screen.sync = options.get('sync') === 'on';
+  // Запізнення має сенс лише для другого екрана: головний починає одразу.
+  if (state.screen.display !== 'second') state.screen.startDelay = 0;
+  if (state.screen.region || state.screen.display === 'second') loadStateBounds();
+
   el('screen-duration').disabled = !state.screen.accelerated;
   el('screen-duration-value').textContent = t('screen.minutes', {
     n: state.screen.durationMinutes,
   });
+}
+
+/**
+ * Чи веде камеру мандрівка по землях. Тоді прожектор потяга лишає карту
+ * у спокої: два керма на одну камеру дають смикання.
+ */
+function touring() {
+  const screen = state.screen;
+  if (!screen.bounds) return false;
+  // Обрана область тримає карту в будь-якому режимі — інакше перемикач у
+  // вебі виглядав би зламаним. Мандрівка країною лишається прискореному
+  // режимові на другому екрані.
+  if (screen.region) return true;
+  return screen.accelerated && screen.display === 'second';
+}
+
+/** Межі земель — із тієї самої геометрії, що малює підкладку. */
+async function loadStateBounds() {
+  if (state.screen.bounds) return;
+  try {
+    state.screen.bounds = stateBounds(await loadJson(`${GEO}/germany-states.json`));
+  } catch {
+    state.screen.bounds = null; // без меж просто лишається вся карта
+  }
+}
+
+/**
+ * Куди дивиться карта у прискореному режимі.
+ *
+ * Головний екран тримає обрану землю, другий мандрує: показує випадкову
+ * землю, потім переїжджає до іншої або відʼїжджає на всю країну. У
+ * реальному часі нічого цього немає — там камерою керує прожектор потяга.
+ */
+function tourStep(now) {
+  const screen = state.screen;
+  if (!screen.bounds) return false;
+  if (!screen.accelerated && !screen.region) return false;
+
+  if (screen.display !== 'second' || !screen.accelerated) {
+    if (!screen.region || screen.tourState === screen.region) return Boolean(screen.region);
+    const box = screen.bounds[screen.region];
+    if (!box) return false;
+    screen.tourState = screen.region;
+    map.fitBounds(box, { padding: 40, duration: 2400, essential: true });
+    return true;
+  }
+
+  if (now - screen.tourAt < screen.tourEvery) return true;
+  screen.tourAt = now;
+  const next = nextStop(Object.keys(screen.bounds), screen.tourState);
+  screen.tourState = next;
+  if (next === null) map.fitBounds(GERMANY, { padding: 28, duration: 3000, essential: true });
+  else map.fitBounds(screen.bounds[next], { padding: 40, duration: 3000, essential: true });
+  return true;
 }
 
 /**
@@ -759,6 +895,7 @@ function screenTick(timestamp) {
 
   state.screen.lastTime = time;
   paintClock(time);
+  refreshStep(timestamp);
   trainSpotlight(timestamp, time);
   screen.frame = requestAnimationFrame(screenTick);
 }
@@ -770,7 +907,7 @@ function screenTick(timestamp) {
 function paintClock(time) {
   const text = bigClock(time);
   if (performance.now() < state.screen.flapUntil) return;
-  const node = el('screen-time');
+  const node = el('hint').querySelector('.hint-clock .flap');
   // Звіряємось із самим вузлом, а не лише з памʼяттю: коли вкладку ховають,
   // rAF засинає й прокрутка може завмерти на півдорозі — тоді на табло
   // лишаються випадкові цифри, поки не зміниться хвилина.
@@ -784,26 +921,25 @@ function paintClock(time) {
  * увага має піти на інформацію, а не на цифри, які зникають.
  */
 function handoffToBoard() {
+  // Вікно одне на всі стани, тож «перехід» — це зміна класу, а не показ
+  // іншого вікна: нічого не стрибає з місця на місце.
   if (state.mode !== 'screen') return;
-  setTimeout(() => {
-    if (!state.train.data) return;
-    el('screen-clock').hidden = true;
-    el('hint').hidden = false;
-  }, 420);
 }
 
 /** Зворотний перехід: табло гасне, годинник накручується назад. */
 function handoffToClock() {
   if (state.mode !== 'screen') return;
-  el('hint').hidden = true;
-  el('screen-clock').hidden = false;
+  const hint = el('hint');
+  hint.classList.remove('is-live', 'is-fact', 'is-empty');
+  hint.classList.add('is-clock');
   // назад годинник накручується з прочерків — це другий і останній момент,
   // коли табло крутиться
+  const node = hint.querySelector('.hint-clock .flap');
   const text = bigClock(state.screen.lastTime ?? 0);
   state.screen.clockText = text;
   state.screen.flapUntil = performance.now() + 700;
-  el('screen-time').textContent = '--:--';
-  flapText(el('screen-time'), text);
+  node.textContent = '--:--';
+  flapText(node, text);
 }
 
 /** 52380 -> '14:33'. Секунди на табло не потрібні: вони лише миготять. */
@@ -849,7 +985,7 @@ function renderLive({ time, stops, phase, value, counts }) {
         screen.seen.add(stops[i]);
         }
     }
-    if (phase[i] === 2 && newMinute) rememberDeparture(station.name);
+    if (phase[i] === 2 && newMinute) rememberDeparture(readableName(station.name));
     features.push({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [station.lon, station.lat] },
@@ -861,14 +997,154 @@ function renderLive({ time, stops, phase, value, counts }) {
     state.screen.lastFeatures = features.length;
   }
 
-  el('screen-standing').textContent = String(counts.standing);
-  el('screen-leaving').textContent = String(counts.leaving);
-  el('screen-left').textContent = String(counts.arrived);
-  renderToday(counts);
-  if (newMinute) {
-    screen.lastMinute = minute;
-    renderTicker();
+  // Малює не тут: віджети оновлюються по одному, своїм ритмом. Тут лише
+  // відкладаємо свіжі дані — інакше панель перемальовується щокадру цілком,
+  // і зміни в ній ніхто не встигає помітити.
+  screen.latest = { stops, phase, counts };
+  if (newMinute) screen.lastMinute = minute;
+}
+
+/**
+ * Дашборди оновлюються по черзі: за цикл перемальовується рівно один віджет.
+ *
+ * Так у панелі завжди щось ледь помітно змінюється, замість того щоб раз на
+ * хвилину смикнутись усією. Порядок сталий — око звикає, де чого чекати.
+ */
+const WIDGETS = [
+  [(data) => paintFigures(data.counts)],
+  [(data) => renderToday(data.counts)],
+  [() => renderTicker()],
+  [(data) => renderStates(data.stops, data.phase)],
+  [(data) => renderKinds(data.counts.kinds)],
+  [(data) => renderEdges(data.stops, data.phase)],
+];
+
+function refreshStep(now) {
+  const screen = state.screen;
+  if (!screen.latest) return;
+
+  // Перші дані малюємо всі одразу: інакше половина панелі стоїть порожня,
+  // поки кожен віджет дочекається своєї черги.
+  if (!screen.primed) {
+    screen.primed = true;
+    screen.refreshAt = now;
+    for (const [paint] of WIDGETS) paint(screen.latest);
+    return;
   }
+
+  if (now - screen.refreshAt < screen.refresh) return;
+  screen.refreshAt = now;
+
+  const [paint] = WIDGETS[screen.refreshTurn % WIDGETS.length];
+  screen.refreshTurn += 1;
+  paint(screen.latest);
+}
+
+function paintFigures(counts) {
+  flapText(el('screen-standing'), String(counts.standing));
+  flapText(el('screen-leaving'), String(counts.leaving));
+  flapText(el('screen-left'), String(counts.arrived));
+}
+
+/**
+ * Підсумки доби: скільки країна проїхала, як часто рушають потяги і скільки
+ * станцій сьогодні ще нікого не бачили.
+ */
+function renderToday(counts) {
+  if (counts.km !== null && counts.km !== undefined) {
+    flapText(el('screen-km'), Math.round(counts.km).toLocaleString('uk-UA'));
+  }
+  // Скільки потягів рушає цієї хвилини. Раніше тут був інтервал у секундах,
+  // але «раз на 0.1 с» читається як помилка, хоч і правда.
+  flapText(el('screen-rate'), String(counts.departuresThisMinute ?? 0));
+
+}
+
+/**
+ * Де зараз рух — три найактивніші землі.
+ *
+ * Земля станції лежить у самих даних (`s` у stations.json), тож це просто
+ * підрахунок по тих станціях, де зараз стоїть потяг.
+ */
+function renderStates(stops, phase) {
+  const names = state.index?.states;
+  if (!names) return;
+
+  const counts = new Map();
+  let total = 0;
+  for (let i = 0; i < stops.length; i += 1) {
+    if (phase[i] !== 1) continue;
+    const station = state.byIndex[stops[i]];
+    if (!station || station.out || station.s == null) continue;
+    counts.set(station.s, (counts.get(station.s) ?? 0) + 1);
+    total += 1;
+  }
+  if (total === 0) return;
+
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const list = el('screen-states');
+
+  // Рядки не перебудовуємо, а оновлюємо: інакше нові вузли зʼявляються вже з
+  // готовою шириною, і смуга стрибає замість того, щоб дорости.
+  while (list.children.length < top.length) {
+    const item = document.createElement('li');
+    item.append(
+      document.createElement('span'),
+      document.createElement('i'),
+      document.createElement('b'),
+    );
+    list.append(item);
+  }
+  while (list.children.length > top.length) list.lastElementChild.remove();
+
+  top.forEach(([id, count], i) => {
+    const share = Math.round((count / total) * 100);
+    const item = list.children[i];
+    item.querySelector('span').textContent = names[id] ?? '—';
+    item.querySelector('i').style.width = `${share}%`;
+    flapText(item.querySelector('b'), `${share}%`);
+  });
+}
+
+/**
+ * Хто зараз їде — частки S-Bahn, RE, RB і решти за останню годину. Рахує
+ * воркер: назви ліній лежать поруч із розкладом, а не в станціях.
+ */
+function renderKinds(kinds) {
+  if (!kinds) return;
+  const total = kinds.S + kinds.RE + kinds.RB + kinds.other;
+  if (total === 0) return;
+
+  const bar = el('screen-kinds');
+  for (const kind of ['S', 'RE', 'RB', 'other']) {
+    let part = bar.querySelector(`[data-kind='${kind}']`);
+    if (!part) {
+      part = document.createElement('span');
+      part.dataset.kind = kind;
+      part.style.width = '0%';
+      bar.append(part);
+    }
+    const share = (kinds[kind] / total) * 100;
+    part.style.width = `${share}%`;
+    part.title = `${t(`screen.kind.${kind}`)} · ${Math.round(share)}%`;
+    part.textContent = share > 12 ? t(`screen.kind.${kind}`) : '';
+  }
+}
+
+/** Крайні точки: найпівнічніший і найпівденніший потяг під посадку. */
+function renderEdges(stops, phase) {
+  let north = null;
+  let south = null;
+  for (let i = 0; i < stops.length; i += 1) {
+    if (phase[i] !== 1) continue;
+    const station = state.byIndex[stops[i]];
+    if (!station || station.out) continue;
+    if (!north || station.lat > north.lat) north = station;
+    if (!south || station.lat < south.lat) south = station;
+  }
+  if (!north || !south) return;
+  flapText(el('screen-north'), readableName(north.name));
+  flapText(el('screen-south'), readableName(south.name));
 }
 
 /** Стрічка останніх відправлень — те, що щойно поїхало. */
@@ -880,12 +1156,12 @@ function rememberDeparture(name) {
 }
 
 function renderTicker() {
-  el('screen-ticker').innerHTML = '';
-  for (const name of state.screen.ticker) {
-    const item = document.createElement('li');
-    item.textContent = name;
-    el('screen-ticker').append(item);
-  }
+  const list = el('screen-ticker');
+  const names = state.screen.ticker;
+  while (list.children.length < names.length) list.append(document.createElement('li'));
+  while (list.children.length > names.length) list.lastElementChild.remove();
+  // Прокручуємо кожен рядок із затримкою: стрічка читається згори вниз.
+  names.forEach((name, i) => flapText(list.children[i], name, { stagger: 1.4 }));
 }
 
 
@@ -906,6 +1182,7 @@ function renderHours(hours) {
 function startScreen() {
   const screen = state.screen;
   screen.startedAt = 0;
+  screen.primed = false;
   screen.lastTick = null;
   screen.seen.clear();
   screen.lastMinute = -1;
@@ -933,13 +1210,15 @@ function selectMode(mode) {
   const story = mode === 'sheldon';
   const screen = mode === 'screen';
   hideTrain(); // прожектор не переїжджає між режимами разом із нами
-  state.train.at = -TRAIN_EVERY; // у новому режимі перший потяг — одразу
+  state.train.at = -state.screen.trainEvery; // у новому режимі перший потяг — одразу
   el('panel').hidden = story || screen;
   el('story').hidden = !story;
   el('screen').hidden = !screen;
   el('screen-show-panel').hidden = !screen || document.documentElement.dataset.panel !== 'off';
-  el('hint').hidden = story || screen;
-  el('screen-clock').hidden = !screen;
+  // У скрінсейвері те саме вікно показує годинник, табло потяга або факт.
+  el('hint').hidden = story;
+  el('hint').classList.toggle('is-clock', screen);
+  if (screen) el('hint').classList.remove('is-empty');
   el('timeline').hidden = story || screen || !state.result;
 
   if (!story) clearStoryLayers();
@@ -1029,6 +1308,30 @@ const state = {
     // і бере потяги з усієї країни
     accelerated: false,
     durationMinutes: 20,
+    // Ритми: скільки триває один показ на табло, факт і крок мандрівки.
+    trainEvery: TRAIN_EVERY_DEFAULT,
+    factShown: FACT_SHOWN_DEFAULT,
+    pause: PAUSE_DEFAULT,
+    quietUntil: 0,
+    // Дашборди: свіжі дані, ритм оновлення й чий зараз хід.
+    latest: null,
+    refresh: REFRESH_DEFAULT,
+    refreshAt: 0,
+    refreshTurn: 0,
+    primed: false,
+    // Другий екран стартує пізніше, щоб два табло не спалахували одночасно.
+    startDelay: 0,
+    // Однаковий вміст на екранах чи різний. Спілкуватись їм нема як (це різні
+    // сторінки в різних процесах), тому «однаковий» — це спільне зерно
+    // випадковості з годинника: обидва рахують те саме, не змовляючись.
+    sync: false,
+    tourEvery: TOUR_EVERY_DEFAULT,
+    // Своя земля й роль екрана — тільки для прискореного режиму.
+    region: null,
+    display: 'main',
+    bounds: null,
+    tourAt: 0,
+    tourState: null,
     startedAt: 0,
     frame: 0, // id rAF; 0 — цикл не крутиться
     seen: new Set(), // станції, які вже обслужили від початку доби
@@ -2244,6 +2547,9 @@ async function initControls() {
   }
 
   worker.postMessage({ type: 'init', dataUrl: DATA });
+  if (state.patterns?.routes) {
+    worker.postMessage({ type: 'routes', routes: state.patterns.routes });
+  }
 
   // Зони будуються у воркері, тому координати мають бути й там.
   const lat = new Float32Array(state.byIndex.length);
@@ -2338,7 +2644,7 @@ async function initControls() {
         other.setAttribute('aria-checked', String(other === button));
       }
       // новий вибір показуємо одразу, не чекаючи наступних 30 секунд
-      state.train.at = -TRAIN_EVERY;
+      state.train.at = -state.screen.trainEvery;
     };
   }
 
@@ -2372,6 +2678,35 @@ async function initControls() {
   };
   el('screen-hide-panel').onclick = () => togglePanel(false);
   el('screen-show-panel').onclick = () => togglePanel(true);
+
+  // Ті самі ритми, що й у заставці: пауза між показами й оновлення віджета.
+  for (const [id, key] of [
+    ['screen-pause', 'pause'],
+    ['screen-refresh', 'refresh'],
+  ]) {
+    const input = el(id);
+    const output = el(`${id}-value`);
+    const show = () => {
+      output.textContent = t('screen.seconds', { n: Number(input.value) });
+    };
+    input.oninput = () => {
+      state.screen[key] = Number(input.value) * 1000;
+      show();
+    };
+    input.value = String(state.screen[key] / 1000);
+    show();
+  }
+
+  // Своя область: карта тримає її, поки показ не забере камеру собі.
+  const region = el('screen-region');
+  region.append(new Option(t('screen.regionAll'), ''));
+  for (const [capital] of CAPITALS) region.append(new Option(capital, capital));
+  region.onchange = () => {
+    state.screen.region = stateOfCapital(region.value);
+    state.screen.tourState = null;
+    if (state.screen.region) loadStateBounds();
+    else map.fitBounds(GERMANY, { padding: 28, duration: 1200 });
+  };
 
   el('screen-duration').oninput = () => {
     state.screen.durationMinutes = Number(el('screen-duration').value);

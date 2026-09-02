@@ -1,72 +1,76 @@
-# Демо-екскурсія та вхід у режими — план
+# The guided tour and the way into the modes — plan
 
-Стан: **виконано**. Вісім кроків, як і планувалось; додалось те, чого в
-плані не було: після «Готово» екскурсія повертає у вікно привітання й
-перший режим, а крок, що вказує на згорнуту панель, спершу її розгортає.
+Status: **done**. Eight steps, as planned; what was not in the plan got
+added along the way: after "Done" the tour returns to the welcome window
+and the first mode, and the step pointing at a collapsed panel expands it
+first.
 
-## Навіщо
+## Why
 
-Три режими на одній карті — це три різні застосунки, і зараз людина
-натрапляє на них випадково. Треба два входи:
+Three modes on one map are three different applications, and right now
+people stumble into them by accident. Two ways in are needed:
 
-1. **З вікна привітання** — три кнопки, по одній на режим, і четверта:
-   «показати екскурсію».
-2. **Екскурсія** — сім кроків, які самі перемикають режими, підсвічують
-   потрібний елемент і пояснюють, що це.
+1. **From the welcome window** — three buttons, one per mode, and a fourth:
+   "show the tour".
+2. **The tour** — seven steps that switch modes themselves, highlight the
+   element in question and explain what it is.
 
-## Механіка підсвітки
+## How the highlight works
 
-- Затемнення на весь екран, у якому «вирізана» рамка навколо цільового
-  елемента. Роблю не маскою, а великою тінню на прозорому блоці, який
-  накладається на елемент: один вузол замість чотирьох, і рамка сама
-  анімується при переході між кроками.
-- Картка з поясненням стоїть поруч із рамкою (зверху, знизу, ліворуч або
-  праворуч — залежно від того, де більше місця) і має трикутну «стрілку»
-  в бік підсвіченого.
-- Кроки: «Далі», «Назад», «Пропустити», Esc. Клік по затемненню нічого не
-  робить, щоб випадковий клік не вбивав екскурсію.
-- Крок може оголосити режим (`mode`) — перед показом перемикаємо на нього
-  і чекаємо, поки перемальюється.
-- Крок може оголосити дію (`action`) — наприклад, порахувати демонстраційний
-  маршрут, щоб було на що дивитись.
+- A full-screen dimmer with a frame "cut out" around the target element.
+  Done not with a mask but with a large shadow on a transparent block laid
+  over the element: one node instead of four, and the frame animates itself
+  between steps.
+- The explanation card sits next to the frame (above, below, left or right,
+  depending on where there is more room) and has a triangular arrow
+  pointing at the highlighted element.
+- Steps: "Next", "Back", "Skip", Esc. Clicking the dimmer does nothing, so
+  a stray click cannot kill the tour.
+- A step may declare a mode (`mode`) — we switch to it before showing and
+  wait for the redraw.
+- A step may declare an action (`action`) — for example computing a demo
+  route so that there is something to look at.
 
-## Кроки
+## The steps
 
-**Куди доїду**
+**Where can I get**
 
-1. **Параметри** — підсвічуємо «мінімум на місці» й «кава й хотдог».
-   Текст: метрика — не час у дорозі, а корисний час на місці; ці два
-   повзунки й задають, скільки його треба.
-2. **Карта** — підсвічуємо карту, попередньо порахувавши маршрут із
-   Франкфурта. Текст: клікніть будь-де, візьму найближчу станцію; колір
-   крапки — скільки годин лишається на місці.
-3. **Табло і шкала часу** — підсвічуємо шкалу. Текст: наведіть на станцію,
-   щоб побачити час приїзду й останній потяг назад; шкала прокручує день.
+1. **Parameters** — highlight "minimum on site" and "coffee and a hotdog".
+   Text: the metric is not travel time but useful time on the ground, and
+   these two sliders set how much of it you need.
+2. **The map** — highlight the map, having first computed a route from
+   Frankfurt. Text: click anywhere and I will take the nearest station; the
+   colour of a dot is how many hours are left on the ground.
+3. **The board and the timeline** — highlight the timeline. Text: hover a
+   station to see the arrival time and the last train back; the timeline
+   scrolls through the day.
 
-**Маршрут Шелдона**
+**Sheldon's route**
 
-4. **Три картки маршрутів** — що планував, як вийшло, дорога додому.
-   Клік по картці перемикає карту.
-5. **Текст розповіді** — абзаци теж перемикають карту: читаєш про стрілки
-   Франкфурта — бачиш Франкфурт.
+4. **Three route cards** — what he planned, how it turned out, the way
+   home. Clicking a card switches the map.
+5. **The story text** — paragraphs switch the map too: read about the
+   points at Frankfurt and you see Frankfurt.
 
-**Скрінсейвер**
+**Screen saver**
 
-6. **Табло** — раз на 30 секунд показує або живий потяг із маршрутом, або
-   факт про німецьку залізницю.
-7. **Крапки й лічильники** — три відтінки: щойно приїхав, стоїть, рушає за
-   півхвилини. Ті самі три числа в панелі.
-8. **Налаштування** — реальний час чи прискорений день, уся карта чи лише
-   видима частина, і дві кнопки згортання панелі.
+6. **The board** — every 30 seconds it shows either a live train with its
+   route or a fact about German railways.
+7. **Dots and counters** — three shades: just arrived, standing, leaving in
+   half a minute. The same three numbers in the panel.
+8. **Settings** — real time or an accelerated day, the whole map or only
+   the visible part, and the two panel-collapsing buttons.
 
-Вісім кроків замість трьох: по одному режиму трьома-двома екранами. Менше
-не виходить — у денному режимі три різні речі (параметри, карта, час).
+Eight steps instead of three: two or three screens per mode. Fewer does not
+work — the day mode has three different things in it (parameters, map,
+time).
 
-## Файли
+## Files
 
-- `web/src/tour.js` — кроки даними (селектор, режим, заголовок, текст,
-  дія) і чиста функція вибору місця для картки. Під тестами.
-- `web/src/map.js` — запуск, перехід між кроками, підсвітка.
-- `web/index.html` + `style.css` — розмітка картки й затемнення, кнопки у
-  вікні привітання.
-- `i18n` — тексти українською; переклади окремим проходом.
+- `web/src/tour.js` — the steps as data (selector, mode, title, text,
+  action) and a pure function choosing where to put the card. Under tests.
+- `web/src/map.js` — starting the tour, moving between steps, the
+  highlight.
+- `web/index.html` + `style.css` — the markup of the card and the dimmer,
+  the buttons in the welcome window.
+- `i18n` — texts in Ukrainian; translations in a separate pass.

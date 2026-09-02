@@ -18,4 +18,13 @@ NSURL *SiteRoot(Class owner);
 WKWebView *MakeSiteWebView(NSURL *root, NSRect frame);
 
 /// Адреса сторінки з налаштуваннями, збереженими для модуля `module`.
-NSString *SiteAddress(NSString *module);
+/// `main` каже сторінці, головний це екран чи додатковий: у прискореному
+/// режимі головний тримає обрану землю, а додатковий мандрує країною.
+NSString *SiteAddress(NSString *module, BOOL main);
+
+/// Головні міста земель — так земля обирається в налаштуваннях.
+extern NSArray<NSString *> *SiteCapitals(void);
+
+/// Мови інтерфейсу — ті самі чотири, що й у вебі.
+extern NSArray<NSString *> *SiteLanguages(void);
+extern NSArray<NSString *> *SiteLanguageNames(void);

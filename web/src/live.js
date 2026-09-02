@@ -81,12 +81,16 @@ export function buildLiveIndex(feed, { spread = true } = {}) {
   for (let m = 0; m < MINUTES; m += 1) depPtr[m + 1] = depPtr[m] + depCounts[m];
   const depStops = new Uint16Array(depPtr[MINUTES]);
   const depSec = new Uint32Array(depPtr[MINUTES]);
+  // Патерн відправлення потрібен лише для одного віджета — «хто зараз їде»,
+  // — але дізнатись його потім нема звідки, тож кладемо поруч одразу.
+  const depPattern = new Uint16Array(depPtr[MINUTES]);
   const depCursor = depPtr.slice(0, MINUTES);
-  forEachStop(feed, (stop, _arrival, departure) => {
+  forEachStop(feed, (stop, _arrival, departure, pattern) => {
     const m = minuteOf(departure);
     if (m < 0 || m >= MINUTES) return;
     depStops[depCursor[m]] = stop;
     depSec[depCursor[m]] = departure;
+    depPattern[depCursor[m]] = pattern;
     depCursor[m] += 1;
   }, spread);
 
@@ -103,7 +107,7 @@ export function buildLiveIndex(feed, { spread = true } = {}) {
     arrCursor[m] += 1;
   }, spread);
 
-  return { ptr, stops, departures, depPtr, depStops, depSec, arrPtr, arrStops, arrSec };
+  return { ptr, stops, departures, depPtr, depStops, depSec, depPattern, arrPtr, arrStops, arrSec };
 }
 
 function minuteOf(seconds) {
@@ -122,7 +126,7 @@ function forEachStop(feed, visit, spread = true) {
       for (let pos = 0; pos < hi - lo; pos += 1) {
         const stop = feed.patternStops[lo + pos];
         const shift = spread ? spreadOf(stop, trip, pos) : 0;
-        visit(stop, feed.tripArr[base + pos] + shift, feed.tripDep[base + pos] + shift);
+        visit(stop, feed.tripArr[base + pos] + shift, feed.tripDep[base + pos] + shift, pattern);
       }
     }
   }
@@ -237,6 +241,35 @@ export function statesAt(index, seconds, { window = 30 } = {}) {
     }
   }
   return { standing, leaving, arrived };
+}
+
+/**
+ * Хто зараз їде: розподіл відправлень поточної години за типом лінії.
+ *
+ * Тип беремо з назви: S-Bahn, RE, RB, решта. Година, а не хвилина, — щоб
+ * смуга не стрибала: у хвилині буває три відправлення, і тоді «100% RB».
+ */
+export function kindsAt(index, seconds, routes) {
+  const t = ((seconds % DAY) + DAY) % DAY;
+  const minute = Math.floor(t / 60);
+  const from = Math.max(0, minute - 59);
+  const kinds = { S: 0, RE: 0, RB: 0, other: 0 };
+
+  for (let m = from; m <= minute && m < MINUTES; m += 1) {
+    for (let i = index.depPtr[m]; i < index.depPtr[m + 1]; i += 1) {
+      kinds[kindOf(routes?.[index.depPattern[i]])] += 1;
+    }
+  }
+  return kinds;
+}
+
+/** «S1» -> S, «RE4» -> RE, «RB33» -> RB, решта (IC, CD, RS…) -> other. */
+export function kindOf(route) {
+  const name = String(route ?? '').trim().toUpperCase();
+  if (/^S\d/.test(name)) return 'S';
+  if (/^RE\d/.test(name)) return 'RE';
+  if (/^RB\d/.test(name)) return 'RB';
+  return 'other';
 }
 
 /** Відправлення по годинах — гістограма «пульсу дня». */

@@ -1118,12 +1118,15 @@ button:active { transform: scale(0.97); }
   color: var(--grey-500);
 }
 
-/* Пульс дня: 24 стовпчики, по одному на годину. */
+/* Пульс дня: 24 стовпчики, по одному на годину. Панель без прокрутки, тож
+   на низькому екрані блоки стискаються — гістограмі це заборонено, інакше
+   вона перетворюється на лінію. */
 #screen-hours {
   display: flex;
   align-items: flex-end;
   gap: 2px;
   height: 64px;
+  flex: none;
   padding: 0 1px;
 }
 
@@ -1186,95 +1189,175 @@ button:active { transform: scale(0.97); }
 }
 
 /* Годинник: те саме скло, що й підказка, тільки цифри великі. */
-#screen-clock {
-  position: fixed;
-  z-index: 3;
-  left: var(--panel-w);
-  right: 0;
-  /* Нижче за перемикачі: у скрінсейвері панель ширша, і на вузькому екрані
-     годинник ліз би просто під них. */
+/* У скрінсейвері вікно стоїть нижче за перемикачі: панель там ширша, і на
+   вузькому екрані табло лізло б просто під них. */
+:root[data-mode='screen'] #hint {
   top: 76px;
-  margin: 0 auto;
-  width: min(420px, calc(100vw - var(--panel-w) - 44px));
-  padding: 14px 16px 16px;
-  text-align: center;
-  border-radius: var(--r-md);
-  background: var(--glass);
-  border: 1px solid var(--glass-line);
-  box-shadow: var(--lift), inset 0 1px 0 var(--glass-shine);
-}
-
-#screen-clock[hidden] { display: none; }
-
-/* У скрінсейвері табло стоїть там само, де годинник, якому воно на час
-   прожектора поступається місцем. */
-:root[data-mode='screen'] #hint { top: 76px; }
-
-/* Табло скрінсейвера росте під текст: і в потяга назви бувають довгі, і
-   факт — це абзац. Обрізати тут нічого не можна. */
-#hint.is-live,
-#hint.is-fact {
+  /* Ширина під найдовший рядок табло: 13 символів підпису плюс 37 під назву
+     станції. 99% назв у фіді коротші; решту обрізаємо трикрапкою. */
+  width: min(560px, calc(100vw - var(--panel-w) - 44px));
   height: auto;
-  min-height: 122px;
-  padding-bottom: 15px;
+  cursor: default;
 }
 
+/* Один стан видно, решта чекають. Вікно не змінює ані місця, ані ширини —
+   міняється тільки те, що всередині. */
+.hint-clock,
+.hint-board,
+.hint-fact { display: none; }
+
+#hint.is-clock .hint-name,
+#hint.is-clock .hint-useful,
+#hint.is-clock .hint-times,
 #hint.is-live .hint-name,
-#hint.is-fact .hint-name {
-  height: auto;
-  display: block;
-  overflow: visible;
-}
-
-#hint.is-live .hint-name .flap,
-#hint.is-fact .hint-name .flap {
-  display: block;
-  white-space: normal;
-}
-
-#hint.is-live .hint-useful .flap,
-#hint.is-live .hint-times .flap {
-  display: inline;
-  width: auto;
-  white-space: normal;
-}
-
 #hint.is-live .hint-useful,
-#hint.is-live .hint-times {
-  white-space: normal;
-}
+#hint.is-live .hint-times,
+#hint.is-fact .hint-name,
+#hint.is-fact .hint-useful,
+#hint.is-fact .hint-times { display: none; }
 
-/* Факт читається як текст, а не як табло: звичайна вага й трохи вільніший
-   рядок. Ширшим вікно теж робимо — абзац у 292 px виглядає стовпчиком. */
-#hint.is-fact {
-  width: min(520px, calc(100vw - var(--panel-w) - 44px));
-}
+#hint.is-clock .hint-clock { display: block; }
+#hint.is-live .hint-board { display: block; }
+#hint.is-fact .hint-fact { display: block; }
 
-#hint.is-fact .hint-name {
-  font-weight: 400;
-  font-size: 13px;
-  line-height: 1.65;
-}
-
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  #screen-clock {
-    background: var(--glass-blur);
-    -webkit-backdrop-filter: blur(14px) saturate(1.4);
-    backdrop-filter: blur(14px) saturate(1.4);
-  }
-}
-
-#screen-time {
-  display: block;
-  font-family: var(--mono);
+/* Годинник */
+.hint-clock {
+  text-align: center;
   font-size: 56px;
   /* 1 обрізає верхівки цифр у Roboto Mono */
   line-height: 1.1;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
+  padding: 6px 0 10px;
 }
 
+/* Табло потяга: підпис ліворуч у власній колонці, значення — у фіксованих
+   комірках. Нічого не центруємо: рядки різної довжини, і центрування
+   змушувало б їх стрибати при кожній зміні. */
+.hint-board p {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.9;
+  white-space: pre;
+}
+
+.board-label {
+  flex: none;
+  width: 13ch;
+  color: var(--grey-400);
+}
+
+.board-value { color: var(--ink); }
+
+/* Факт — це текст, а не табло: звичайна вага, вільніший рядок і коротка
+   поява замість побуквеної прокрутки, яку в абзаці читати неможливо. */
+.hint-fact {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink);
+  animation: fact-in 420ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes fact-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hint-fact { animation: none; }
+  #screen-states i,
+  #screen-kinds span { transition: none; }
+}
+
+/* Де зараз рух: назва землі, смуга частки, число. Смуга росте вправо, тож
+   три рядки читаються як одна гістограма. */
+#screen-states {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+#screen-states li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 12px;
+}
+
+#screen-states i {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--seq-2);
+  /* Ширина їде повільно: віджет оновлюється рідко, тож рух має бути помітним
+     сам по собі, без спалахів. */
+  transition: width 1400ms cubic-bezier(0.2, 0.7, 0.3, 1);
+  opacity: 0.75;
+  min-width: 2px;
+}
+
+#screen-states b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--grey-500);
+}
+
+/* Хто зараз їде: одна смуга з часток. Підпис влазить не в кожну частку,
+   тому короткі лишаються без нього — там працює підказка. */
+#screen-kinds {
+  display: flex;
+  flex: none;
+  height: 22px;
+  margin-bottom: 18px;
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 11px;
+}
+
+#screen-kinds span {
+  display: flex;
+  transition: width 1400ms cubic-bezier(0.2, 0.7, 0.3, 1);
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+#screen-kinds span[data-kind='S'] { background: var(--seq-3); }
+#screen-kinds span[data-kind='RE'] { background: var(--seq-2); }
+#screen-kinds span[data-kind='RB'] { background: var(--seq-1); color: var(--grey-600); }
+#screen-kinds span[data-kind='other'] { background: var(--grey-300); color: var(--grey-600); }
+
+/* Крайні точки — той самий макет, що й «сьогодні від півночі». */
+#screen-edges {
+  margin: 0 0 18px;
+  font-size: 12px;
+}
+
+#screen-edges div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+#screen-edges dt { color: var(--grey-500); }
+
+#screen-edges dd {
+  margin: 0;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* Список земель у скрінсейвері */
 #screen-regions {
@@ -1805,7 +1888,6 @@ button:active { transform: scale(0.97); }
   }
 
   #hint,
-  #screen-clock,
   #timeline {
     left: 12px;
     right: 12px;
@@ -1813,13 +1895,14 @@ button:active { transform: scale(0.97); }
     max-width: none;
   }
 
-  #hint { top: 12px; }
-  :root[data-mode='screen'] #hint,
-  #screen-clock { top: 12px; }
+  #hint,
+  :root[data-mode='screen'] #hint { top: 12px; width: auto; }
 
-  #hint.is-fact { width: auto; }
+  .hint-clock { font-size: 40px; }
 
-  #screen-time { font-size: 40px; }
+  /* На вузькому екрані підпис і значення не вміщаються в один рядок. */
+  .hint-board p { display: block; }
+  .board-label { width: auto; display: block; }
 
   /* Шкала часу тримається нижнього краю карти, а не низу екрана. */
   #timeline {
