@@ -438,10 +438,10 @@ export const STRINGS = {
     pl: 'Nic nie jest policzone z góry. Przeglądarka raz wczytuje kompaktowy binarny rozkład i sama liczy trasy, w wątku w tle — więc początkiem może być każda z 7737 stacji, którą klikniesz.',
   },
   'about.qr': {
-    uk: 'Якщо карта стала в пригоді — можна поставити мені каву. Код і дані від цього не зміняться: усе лишиться відкритим.',
-    en: 'If the map came in useful, you can buy me a coffee. It changes nothing about the code or the data: both stay open.',
-    de: 'Wenn die Karte nützlich war, können Sie mir einen Kaffee ausgeben. Am Code und an den Daten ändert das nichts: beides bleibt offen.',
-    pl: 'Jeśli mapa się przydała, możesz postawić mi kawę. Nic to nie zmienia w kodzie ani w danych: jedno i drugie zostaje otwarte.',
+    uk: 'Якщо карта стала в пригоді — можна поставити мені каву. Це найпростіший спосіб сказати, що варто рухатись далі: у мене довгий список того, що хочеться сюди додати.',
+    en: 'If the map came in useful, you can buy me a coffee. It is the simplest way to say the thing is worth carrying on: I have a long list of what I would like to add here.',
+    de: 'Wenn die Karte nützlich war, können Sie mir einen Kaffee ausgeben. Das ist die einfachste Art zu sagen, dass es sich lohnt weiterzumachen: Ich habe eine lange Liste dessen, was hier noch dazukommen soll.',
+    pl: 'Jeśli mapa się przydała, możesz postawić mi kawę. To najprostszy sposób, żeby powiedzieć, że warto ciągnąć dalej: mam długą listę rzeczy, które chcę tu dodać.',
   },
   'about.qrAlt': {
     uk: 'QR-код на сторінку підтримки',

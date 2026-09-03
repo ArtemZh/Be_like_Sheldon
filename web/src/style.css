@@ -1198,10 +1198,15 @@ button:active { transform: scale(0.97); }
   vertical-align: 1px;
 }
 
-/* Ті самі три відтінки, що й крапки на карті. */
-.screen-figures div:nth-child(1) small { color: #c04a12; }
-.screen-figures div:nth-child(2) small { color: #f6a072; }
-.screen-figures div:nth-child(3) small { color: #6b2206; }
+/* Ті самі три відтінки, що й крапки на карті, від темного до світлого:
+   щойно приїхав — стоїть — рушає за півхвилини. Порядок той самий, що й у
+   чисел, тож панель читається як шкала. */
+.screen-figures div:nth-child(1) small,
+.screen-figures div:nth-child(1) span { color: #6b2206; }
+.screen-figures div:nth-child(2) small,
+.screen-figures div:nth-child(2) span { color: #c04a12; }
+.screen-figures div:nth-child(3) small,
+.screen-figures div:nth-child(3) span { color: #f6a072; }
 
 .screen-figures small {
   display: block;
@@ -2098,10 +2103,12 @@ button:active { transform: scale(0.97); }
 /* Кіоск: ?chrome=off лишає дашборди, але прибирає все, що треба натискати —
    у скрінсейвері налаштування задає сама заставка, а не сторінка. */
 /* До того, як застосунок прокинеться, денну панель і вікно привітання видно
-   бути не має: у скрінсейвері це блимає на першому кадрі. */
-:root[data-mode='screen'] #panel,
-:root[data-mode='screen'] #intro,
-:root[data-mode='sheldon'] #panel {
+   бути не має: у скрінсейвері це блимає на першому кадрі. Після запуску
+   правило знімається класом `ready` — інакше вітальне вікно неможливо
+   відкрити з-під скрінсейвера. */
+:root:not(.ready)[data-mode='screen'] #panel,
+:root:not(.ready)[data-mode='screen'] #intro,
+:root:not(.ready)[data-mode='sheldon'] #panel {
   display: none;
 }
 

@@ -751,6 +751,8 @@ function applyUrlOptions() {
 
   applyScreenOptions(options);
   reportToSaver();
+  // Застосунок прокинувся: правила проти блимання більше не потрібні.
+  document.documentElement.classList.add('ready');
 }
 
 /**
