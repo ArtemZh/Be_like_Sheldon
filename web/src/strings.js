@@ -294,6 +294,18 @@ export const STRINGS = {
     de: '— ganz Deutschland —',
     pl: '— całe Niemcy —',
   },
+  'screen.demoStart': {
+    uk: 'Почати показ зараз',
+    en: 'Start the show now',
+    de: 'Vorführung jetzt starten',
+    pl: 'Zacznij pokaz teraz',
+  },
+  'screen.demoStop': {
+    uk: 'Спинити показ',
+    en: 'Stop the show',
+    de: 'Vorführung anhalten',
+    pl: 'Zatrzymaj pokaz',
+  },
   'screen.download': {
     uk: 'Завантажити заставку для macOS',
     en: 'Download the macOS screen saver',

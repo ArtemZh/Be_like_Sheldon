@@ -582,13 +582,44 @@ function paintIdleRing() {
   ring.hidden = !show;
   if (!show) return;
 
+  const running = demoIsRunning();
   const idle = performance.now() - state.screen.lastInput;
-  const left = Math.max(0, 1 - idle / IDLE_BEFORE_DEMO);
+  // Поки йде показ, кільце стоїть повним: воно відлічує очікування, а не показ.
+  const left = running ? 1 : Math.max(0, 1 - idle / IDLE_BEFORE_DEMO);
+
   const run = ring.querySelector('.idle-run');
-  const circumference = 2 * Math.PI * 8;
+  const circumference = 2 * Math.PI * 10;
   run.style.strokeDasharray = String(circumference);
   run.style.strokeDashoffset = String(circumference * (1 - left));
-  ring.classList.toggle('is-done', left === 0);
+  ring.classList.toggle('is-running', running);
+  ring.classList.toggle('is-done', !running && left === 0);
+  ring.setAttribute('aria-label', t(running ? 'screen.demoStop' : 'screen.demoStart'));
+}
+
+/** Показ іде: або його ввімкнули руками, або збіг час очікування. */
+function demoIsRunning() {
+  const screen = state.screen;
+  if (screen.demo === 'on') return true;
+  if (screen.demo === 'off') return false;
+  return performance.now() - screen.lastInput >= IDLE_BEFORE_DEMO;
+}
+
+/**
+ * Плей і пауза в кільці: чекати тридцять секунд не обов'язково, а спинити
+ * показ інакше можна було тільки рухом миші — і то на тридцять секунд.
+ */
+function toggleDemo() {
+  const screen = state.screen;
+  if (demoIsRunning()) {
+    screen.demo = 'off';
+    if (state.train.data) hideTrain();
+  } else {
+    screen.demo = 'on';
+    screen.lastInput = performance.now() - IDLE_BEFORE_DEMO;
+    state.train.at = -screen.trainEvery;
+    screen.quietUntil = 0;
+  }
+  paintIdleRing();
 }
 
 function trainSpotlight(now, time) {
@@ -611,9 +642,7 @@ function trainSpotlight(now, time) {
   // клавіш і рухів карти. Під час екскурсії воно мовчить взагалі.
   if (!el('tour').hidden) return;
   // У кіоску чекати нема на кого: миші там немає взагалі.
-  if (document.documentElement.dataset.chrome !== 'off') {
-    if (performance.now() - state.screen.lastInput < IDLE_BEFORE_DEMO) return;
-  }
+  if (document.documentElement.dataset.chrome !== 'off' && !demoIsRunning()) return;
 
   // Другий екран починає пізніше: інакше обидва спалахують табло водночас.
   if (now - state.screen.startedAt < state.screen.startDelay) return;
@@ -875,6 +904,20 @@ function tourStep(now) {
 /** Яку вкладку панелі видно: дашборди чи налаштування. */
 function selectScreenTab(name) {
   el('screen').dataset.tab = name;
+  // Клік по кільцю не має перемикати режим: воно живе всередині кнопки.
+  for (const event of ['click', 'pointerdown']) {
+    el('idle-ring').addEventListener(event, (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (event === 'click') toggleDemo();
+    });
+  }
+  el('idle-ring').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    toggleDemo();
+  });
+
   for (const tab of document.querySelectorAll('#screen-tabs button')) {
     tab.setAttribute('aria-selected', String(tab.dataset.tab === name));
   }
@@ -1354,6 +1397,8 @@ const state = {
     refreshAt: 0,
     refreshTurn: 0,
     primed: false,
+    // Показ: 'auto' — за простоєм, 'on' — увімкнули руками, 'off' — спинили.
+    demo: 'auto',
     // Другий екран стартує пізніше, щоб два табло не спалахували одночасно.
     startDelay: 0,
     // Однаковий вміст на екранах чи різний. Спілкуватись їм нема як (це різні
@@ -2388,6 +2433,7 @@ function addLayers() {
       if (state.mode !== 'screen') return;
       if (kind !== 'wheel' && !event.originalEvent) return; // наш власний політ
       state.screen.lastInput = performance.now();
+      state.screen.demo = 'auto';
     });
   }
 

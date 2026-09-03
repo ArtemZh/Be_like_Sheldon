@@ -2077,17 +2077,31 @@ button:active { transform: scale(0.97); }
 /* Кільце очікування біля назви режиму: збігає за час простою, і видно,
    коли ввімкнеться показ. */
 #idle-ring {
-  width: 13px;
-  height: 13px;
-  margin-left: 6px;
-  vertical-align: -2px;
+  width: 18px;
+  height: 18px;
+  margin-left: 7px;
+  vertical-align: -4px;
   overflow: visible;
+  cursor: pointer;
 }
 
 #idle-ring circle {
   fill: none;
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
+
+/* Плей і пауза всередині кільця: видно рівно один зі знаків. */
+.idle-play,
+.idle-pause { fill: var(--grey-500); }
+
+#idle-ring .idle-pause { display: none; }
+#idle-ring.is-running .idle-play { display: none; }
+#idle-ring.is-running .idle-pause { display: inline; }
+#idle-ring.is-running .idle-play,
+#idle-ring.is-running .idle-pause { fill: var(--signal); }
+
+#idle-ring:hover .idle-play,
+#idle-ring:hover .idle-pause { fill: var(--signal); }
 
 .idle-track { stroke: var(--grey-200); }
 

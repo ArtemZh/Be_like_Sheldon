@@ -223,7 +223,7 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
       @"Оновлення віджета:", @"Widget refresh:", @"Widget-Wechsel:", @"Odświeżanie widżetu:"
     ],
     @"delay" : @[
-      @"Запізнення 2-го екрана:", @"Second screen delay:", @"Verzögerung 2. Bildschirm:",
+      @"Запізнення 2-го:", @"Second screen delay:", @"Verzögerung 2. Schirm:",
       @"Opóźnienie 2. ekranu:"
     ],
     @"sync" : @[
@@ -264,44 +264,44 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
     return self.sheet;
   }
 
-  NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 470, 596)
+  NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 520, 640)
                                                 styleMask:NSWindowStyleMaskTitled
                                                   backing:NSBackingStoreBuffered
                                                     defer:NO];
   NSView *content = sheet.contentView;
   self.texts = [NSMutableDictionary dictionary];
 
-  NSTextField *showGroup = [self groupWithTitle:@"" atY:560];
+  NSTextField *showGroup = [self groupWithTitle:@"" atY:604];
   self.texts[@"show"] = showGroup;
   [content addSubview:showGroup];
 
-  self.langField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 526, 280, 25)];
+  self.langField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(192, 570, 250, 25)];
   [self.langField addItemsWithTitles:SiteLanguageNames()];
   self.langField.target = self;
   self.langField.action = @selector(languageChanged:);
-  [content addSubview:[self labelForKey:@"lang" atY:529]];
+  [content addSubview:[self labelForKey:@"lang" atY:573]];
   [content addSubview:self.langField];
 
-  self.speedField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 491, 280, 25)];
+  self.speedField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(192, 535, 250, 25)];
   [self.speedField addItemsWithTitles:@[ @"Real time", @"Accelerated" ]];
-  [content addSubview:[self labelForKey:@"time" atY:494]];
+  [content addSubview:[self labelForKey:@"time" atY:538]];
   [content addSubview:self.speedField];
 
-  self.minutesField = [self sliderFrom:10 to:60 atY:456];
-  self.minutesLabel = [self valueLabelAtY:456];
-  [content addSubview:[self labelForKey:@"day" atY:459]];
+  self.minutesField = [self sliderFrom:10 to:60 atY:500];
+  self.minutesLabel = [self valueLabelAtY:500];
+  [content addSubview:[self labelForKey:@"day" atY:503]];
   [content addSubview:self.minutesField];
   [content addSubview:self.minutesLabel];
 
-  self.regionField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(160, 421, 280, 25)];
+  self.regionField = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(192, 465, 250, 25)];
   [self.regionField addItemWithTitle:@"— all of Germany —"];
   [self.regionField addItemsWithTitles:SiteCapitals()];
-  [content addSubview:[self labelForKey:@"region" atY:424]];
+  [content addSubview:[self labelForKey:@"region" atY:468]];
   [content addSubview:self.regionField];
 
   // Область працює лише у прискореному режимі — кажемо це прямо, щоб не
   // здавалося, що налаштування зламане.
-  NSTextField *hint = [[NSTextField alloc] initWithFrame:NSMakeRect(160, 397, 290, 18)];
+  NSTextField *hint = [[NSTextField alloc] initWithFrame:NSMakeRect(192, 443, 310, 18)];
   self.texts[@"regionHint"] = hint;
   hint.editable = NO;
   hint.bordered = NO;
@@ -310,56 +310,56 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
   hint.textColor = NSColor.secondaryLabelColor;
   [content addSubview:hint];
 
-  NSTextField *rhythmGroup = [self groupWithTitle:@"" atY:361];
+  NSTextField *rhythmGroup = [self groupWithTitle:@"" atY:405];
   self.texts[@"rhythm"] = rhythmGroup;
   [content addSubview:rhythmGroup];
 
-  self.boardField = [self sliderFrom:10 to:120 atY:327];
-  self.boardLabel = [self valueLabelAtY:327];
-  [content addSubview:[self labelForKey:@"board" atY:330]];
+  self.boardField = [self sliderFrom:10 to:120 atY:371];
+  self.boardLabel = [self valueLabelAtY:371];
+  [content addSubview:[self labelForKey:@"board" atY:374]];
   [content addSubview:self.boardField];
   [content addSubview:self.boardLabel];
 
-  self.factField = [self sliderFrom:5 to:90 atY:292];
-  self.factLabel = [self valueLabelAtY:292];
-  [content addSubview:[self labelForKey:@"fact" atY:295]];
+  self.factField = [self sliderFrom:5 to:90 atY:336];
+  self.factLabel = [self valueLabelAtY:336];
+  [content addSubview:[self labelForKey:@"fact" atY:339]];
   [content addSubview:self.factField];
   [content addSubview:self.factLabel];
 
-  self.pauseField = [self sliderFrom:5 to:300 atY:257];
-  self.pauseLabel = [self valueLabelAtY:257];
-  [content addSubview:[self labelForKey:@"pause" atY:260]];
+  self.pauseField = [self sliderFrom:5 to:300 atY:301];
+  self.pauseLabel = [self valueLabelAtY:301];
+  [content addSubview:[self labelForKey:@"pause" atY:304]];
   [content addSubview:self.pauseField];
   [content addSubview:self.pauseLabel];
 
-  self.tourField = [self sliderFrom:10 to:300 atY:222];
-  self.tourLabel = [self valueLabelAtY:222];
-  [content addSubview:[self labelForKey:@"tour" atY:225]];
+  self.tourField = [self sliderFrom:10 to:300 atY:266];
+  self.tourLabel = [self valueLabelAtY:266];
+  [content addSubview:[self labelForKey:@"tour" atY:269]];
   [content addSubview:self.tourField];
   [content addSubview:self.tourLabel];
 
-  self.refreshField = [self sliderFrom:2 to:120 atY:187];
-  self.refreshLabel = [self valueLabelAtY:187];
-  [content addSubview:[self labelForKey:@"refresh" atY:190]];
+  self.refreshField = [self sliderFrom:2 to:120 atY:231];
+  self.refreshLabel = [self valueLabelAtY:231];
+  [content addSubview:[self labelForKey:@"refresh" atY:234]];
   [content addSubview:self.refreshField];
   [content addSubview:self.refreshLabel];
 
-  self.delayField = [self sliderFrom:0 to:120 atY:152];
-  self.delayLabel = [self valueLabelAtY:152];
-  [content addSubview:[self labelForKey:@"delay" atY:155]];
+  self.delayField = [self sliderFrom:0 to:120 atY:196];
+  self.delayLabel = [self valueLabelAtY:196];
+  [content addSubview:[self labelForKey:@"delay" atY:199]];
   [content addSubview:self.delayField];
   [content addSubview:self.delayLabel];
 
   self.syncField = [NSButton checkboxWithTitle:@"" target:nil action:nil];
-  self.syncField.frame = NSMakeRect(160, 120, 300, 20);
+  self.syncField.frame = NSMakeRect(192, 158, 310, 20);
   [content addSubview:self.syncField];
 
   self.clockField = [NSButton checkboxWithTitle:@"" target:nil action:nil];
-  self.clockField.frame = NSMakeRect(160, 84, 300, 20);
+  self.clockField.frame = NSMakeRect(192, 128, 310, 20);
   [content addSubview:self.clockField];
 
   // Місце для правди, якщо система не дасть змінити своє налаштування.
-  self.clockNote = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 46, 300, 30)];
+  self.clockNote = [[NSTextField alloc] initWithFrame:NSMakeRect(16, 86, 320, 32)];
   self.clockNote.editable = NO;
   self.clockNote.bordered = NO;
   self.clockNote.drawsBackground = NO;
@@ -371,22 +371,22 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
   self.clockButton = [NSButton buttonWithTitle:@""
                                         target:self
                                         action:@selector(openScreenSaverSettings:)];
-  self.clockButton.frame = NSMakeRect(325, 48, 120, 28);
+  self.clockButton.frame = NSMakeRect(346, 86, 158, 28);
   self.clockButton.hidden = YES;
   [content addSubview:self.clockButton];
 
   // Куди подивитись, якщо захочеться подробиць: сайт і код.
-  self.siteLink = [self linkButtonAtX:20 y:20 action:@selector(openSite:)];
-  self.codeLink = [self linkButtonAtX:120 y:20 action:@selector(openCode:)];
-  self.coffeeLink = [self linkButtonAtX:220 y:20 action:@selector(openCoffee:)];
+  self.siteLink = [self linkButtonAtX:16 y:52 action:@selector(openSite:)];
+  self.codeLink = [self linkButtonAtX:142 y:52 action:@selector(openCode:)];
+  self.coffeeLink = [self linkButtonAtX:268 y:52 action:@selector(openCoffee:)];
   [content addSubview:self.siteLink];
   [content addSubview:self.codeLink];
   [content addSubview:self.coffeeLink];
 
   self.cancelButton = [NSButton buttonWithTitle:@"" target:self action:@selector(closeSheet:)];
-  self.cancelButton.frame = NSMakeRect(250, 14, 100, 32);
+  self.cancelButton.frame = NSMakeRect(290, 14, 100, 32);
   self.saveButton = [NSButton buttonWithTitle:@"" target:self action:@selector(saveSheet:)];
-  self.saveButton.frame = NSMakeRect(355, 14, 100, 32);
+  self.saveButton.frame = NSMakeRect(400, 14, 100, 32);
   self.saveButton.keyEquivalent = @"\r";
   [content addSubview:self.cancelButton];
   [content addSubview:self.saveButton];
@@ -398,7 +398,7 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
 
 /** Заголовок групи: три групи читаються швидше за десять рядків підряд. */
 - (NSTextField *)groupWithTitle:(NSString *)title atY:(CGFloat)y {
-  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 300, 20)];
+  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(14, y, 320, 20)];
   label.stringValue = title;
   label.editable = NO;
   label.bordered = NO;
@@ -408,7 +408,7 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
 }
 
 - (NSSlider *)sliderFrom:(double)min to:(double)max atY:(CGFloat)y {
-  NSSlider *slider = [[NSSlider alloc] initWithFrame:NSMakeRect(160, y, 220, 25)];
+  NSSlider *slider = [[NSSlider alloc] initWithFrame:NSMakeRect(192, y, 250, 25)];
   slider.minValue = min;
   slider.maxValue = max;
   slider.target = self;
@@ -417,7 +417,7 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
 }
 
 - (NSTextField *)valueLabelAtY:(CGFloat)y {
-  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(388, y + 3, 70, 20)];
+  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(452, y + 3, 60, 20)];
   label.editable = NO;
   label.bordered = NO;
   label.drawsBackground = NO;
@@ -428,7 +428,7 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
 /** Посилання виглядає як посилання, а не як кнопка: це не дія, а довідка. */
 - (NSButton *)linkButtonAtX:(CGFloat)x y:(CGFloat)y action:(SEL)action {
   NSButton *button = [NSButton buttonWithTitle:@"" target:self action:action];
-  button.frame = NSMakeRect(x, y, 100, 24);
+  button.frame = NSMakeRect(x, y, 120, 24);
   button.bordered = NO;
   button.contentTintColor = NSColor.linkColor;
   button.font = [NSFont systemFontOfSize:11];
@@ -456,7 +456,7 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *SheetTexts(void) {
 }
 
 - (NSTextField *)labelWithText:(NSString *)text atY:(CGFloat)y {
-  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(10, y, 145, 20)];
+  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(14, y, 170, 20)];
   label.stringValue = text;
   label.editable = NO;
   label.bordered = NO;

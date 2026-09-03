@@ -73,10 +73,17 @@
       <button type="button" data-mode="sheldon" role="radio" aria-checked="false" data-i18n="mode.sheldon">Маршрут Шелдона</button>
       <button type="button" data-mode="screen" role="radio" aria-checked="false">
         <span data-i18n="mode.screen">Скрінсейвер</span>
-        <!-- Кільце збігає за час простою: видно, коли почнеться показ. -->
-        <svg id="idle-ring" viewBox="0 0 20 20" aria-hidden="true" hidden>
-          <circle class="idle-track" cx="10" cy="10" r="8" />
-          <circle class="idle-run" cx="10" cy="10" r="8" />
+        <!-- Кільце збігає за час простою: видно, коли почнеться показ.
+             Усередині — плей: показ можна не чекати, а ввімкнути одразу. -->
+        <svg id="idle-ring" viewBox="0 0 24 24" role="button" tabindex="0"
+             data-i18n-aria="screen.demoStart" hidden>
+          <circle class="idle-track" cx="12" cy="12" r="10" />
+          <circle class="idle-run" cx="12" cy="12" r="10" />
+          <path class="idle-play" d="M10 8.5l5.5 3.5-5.5 3.5z" />
+          <g class="idle-pause">
+            <rect x="9.2" y="8.4" width="2" height="7.2" rx="0.7" />
+            <rect x="12.8" y="8.4" width="2" height="7.2" rx="0.7" />
+          </g>
         </svg>
       </button>
     </div>
